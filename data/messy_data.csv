@@ -1,0 +1,12 @@
+date,amount,category,item
+2024/01/01,$19.99,clothing ,T-Shirt
+2024-01-01,5.49,Food,Coffee
+01-02-2024,12,Clothing,Socks
+2024-01-02,8.99,food,Sandwich
+2024-01-03,25.00,Electronics,Headphones
+2024-01-03,5.49,Food,Coffee
+2024-01-04,100,Electronics,Keyboard
+2024-01-04,19.99,Clothing,T-Shirt
+2024-01-05,,Food,Sandwich
+2024-01-05,12.00,Clothing,Socks
+2024-01-05,12.00,Clothing,Socks
