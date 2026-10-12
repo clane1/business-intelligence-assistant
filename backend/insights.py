@@ -12,7 +12,7 @@ be displayed in the BI dashboard.
 import pandas as pd
 
 # Import functions from transformation.py
-from transformation import (
+from backend.transformation import (
     calculate_kpis,
     sales_by_category,
     sales_by_date,
@@ -141,16 +141,16 @@ if __name__ == "__main__":
 
     print("Insights module started...")
 
-# Load sample data
-df = pd.read_csv("data/sample_data.csv")
+    # Load sample data
+    df = pd.read_csv("data/sample_data.csv")
 
-# Generate insights from the dataset
-insights = generate_insights(df)
+    # Generate insights from the dataset
+    insights = generate_insights(df)
 
-print("\n=== BUSINESS INSIGHTS ===")
+    print("\n=== BUSINESS INSIGHTS ===")
 
-# Display each insight individually
-for insight in insights:
-    print(f"• {insight}")
+    # Display each insight individually
+    for insight in insights:
+        print(f"• {insight}")
 
-print("\nInsights module completed.")
+    print("\nInsights module completed.")

@@ -7,22 +7,30 @@ def calculate_kpis(df: pd.DataFrame) -> dict:
     from the cleaned dataset.
 
     Returns:
-        total_sales        -> sum of all sales
-        average_sale      -> average transaction value
-        transaction_count -> number of transactions
+        total_sales
+        average_sale
+        transaction_count
     """
 
-    # Calculate the total revenue generated
-    total_sales = round(df["amount"].sum(), 2)
+    # Force amount column to numeric
+    amount_values = pd.to_numeric(
+        df["amount"],
+        errors="coerce"
+    )
 
-    # Calculate the average amount per sale
-    average_sale = round(df["amount"].mean(), 2)
+    # Replace invalid values with 0
+    amount_values = amount_values.fillna(0)
 
-    # Count total transactions (rows)
+    total_sales = float(
+        round(amount_values.sum(), 2)
+    )
+
+    average_sale = float(
+        round(amount_values.mean(), 2)
+    )
+
     transaction_count = len(df)
 
-    # Store metrics in a dictionary so they
-    # can easily be used by other modules
     kpis = {
         "total_sales": total_sales,
         "average_sale": average_sale,
@@ -30,7 +38,6 @@ def calculate_kpis(df: pd.DataFrame) -> dict:
     }
 
     return kpis
-
 
 def sales_by_category(df: pd.DataFrame) -> pd.DataFrame:
     """
