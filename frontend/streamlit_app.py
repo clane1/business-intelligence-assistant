@@ -27,6 +27,37 @@ import pandas as pd
 import streamlit as st
 
 # ==========================================
+# SESSION STATE
+# ==========================================
+
+if "upload_complete" not in st.session_state:
+    st.session_state.upload_complete = False
+
+if "validation_complete" not in st.session_state:
+    st.session_state.validation_complete = False
+
+if "analysis_complete" not in st.session_state:
+    st.session_state.analysis_complete = False
+
+if "dataset_type" not in st.session_state:
+    st.session_state.dataset_type = "Sales Data"
+    
+    
+# ==========================================
+# RESET ANALYSIS
+# ==========================================
+
+if st.button("🔄 Start New Analysis"):
+
+    st.session_state.upload_complete = False
+    st.session_state.validation_complete = False
+    st.session_state.analysis_complete = False
+
+    st.session_state.dataset_type = "Sales Data"
+
+    st.rerun()
+    
+# ==========================================
 # PROJECT PATH SETUP
 # ==========================================
 #
@@ -116,12 +147,69 @@ This prototype is being developed as part of CMPT 496.
 )
 
 # ==========================================
+# DATASET CONFIGURATION
+# ==========================================
+
+st.header("Dataset Configuration")
+
+dataset_type = st.selectbox(
+    "Dataset Type",
+    [
+        "Sales Data",
+        "Inventory Data",
+        "Expense Data",
+        "Customer Data"
+    ]
+)
+
+st.session_state.dataset_type = dataset_type
+
+if dataset_type != "Sales Data":
+
+    st.warning(
+        "Only Sales Data is currently implemented. Other dataset types are planned for future development."
+    )
+
+headers_included = st.checkbox(
+    "First row contains headers",
+    value=True
+)
+
+delimiter = st.selectbox(
+    "Delimiter",
+    [
+        "Comma",
+        "Tab",
+        "Semicolon"
+    ]
+)
+
+# ==========================================
 # FILE UPLOAD
 # ==========================================
 
 uploaded_file = st.file_uploader(
     "Upload CSV File",
     type=["csv"]
+)
+
+
+# ==========================================
+# WORKFLOW STATUS
+# ==========================================
+
+st.sidebar.header("Workflow Status")
+
+st.sidebar.write(
+    f"Upload: {'✅' if st.session_state.upload_complete else '❌'}"
+)
+
+st.sidebar.write(
+    f"Validation: {'✅' if st.session_state.validation_complete else '❌'}"
+)
+
+st.sidebar.write(
+    f"Analysis: {'✅' if st.session_state.analysis_complete else '❌'}"
 )
 
 # ==========================================
@@ -134,9 +222,24 @@ if uploaded_file is not None:
     # LOAD DATA
     # --------------------------------------
 
-    df = pd.read_csv(uploaded_file)
+    delimiter_map = {
+    "Comma": ",",
+    "Tab": "\t",
+    "Semicolon": ";"
+    }
+
+    header_value = 0 if headers_included else None
+
+    df = pd.read_csv(
+        uploaded_file,
+        sep=delimiter_map[delimiter],
+        header=header_value
+    )
+
+    st.session_state.upload_complete = True
 
     st.success("CSV file uploaded successfully.")
+
 
     # --------------------------------------
     # VALIDATION
@@ -164,6 +267,7 @@ if uploaded_file is not None:
         st.stop()
 
     st.success("Required columns found.")
+    st.session_state.validation_complete = True
 
     st.subheader("Missing Values")
 
@@ -200,20 +304,22 @@ if uploaded_file is not None:
     )
 
     st.success("Dataset cleaned successfully.")
+    
+    st.session_state.analysis_complete = True
 
     # --------------------------------------
     # DEBUG INFO
     # --------------------------------------
 
-    st.subheader("Debug Information")
+    with st.expander("Debug Information"):
 
-    st.write("Amount Column Type:")
+        st.write("Amount Column Type:")
 
-    st.code(str(df["amount"].dtype))
+        st.code(str(df["amount"].dtype))
 
-    st.write("Preview of cleaned dataset:")
+        st.write("Preview of cleaned dataset:")
 
-    st.dataframe(df.head())
+        st.dataframe(df.head())
 
     # --------------------------------------
     # KPI SECTION
@@ -284,6 +390,30 @@ if uploaded_file is not None:
 
     for insight in insights:
         st.write(f"• {insight}")
+        
+    # ======================================
+    # DOWNLOAD RESULTS
+    # ======================================
+
+    st.header("📥 Download Results")
+
+    csv_data = df.to_csv(index=False)
+
+    st.download_button(
+        label="Download Cleaned CSV",
+        data=csv_data,
+        file_name="cleaned_data.csv",
+        mime="text/csv"
+    )
+
+    insight_text = "\n".join(insights)
+
+    st.download_button(
+        label="Download Insights",
+        data=insight_text,
+        file_name="business_insights.txt",
+        mime="text/plain"
+    )    
 
     # --------------------------------------
     # DATA PREVIEW
