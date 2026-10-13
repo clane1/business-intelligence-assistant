@@ -77,8 +77,13 @@ def generate_insights(df: pd.DataFrame) -> list:
         daily_totals["amount"].idxmax()
     ]
 
+    # Convert datetime into a cleaner string format
+    best_day_date = best_day["date"].strftime(
+        "%Y-%m-%d"
+    )
+
     insights.append(
-        f"{best_day['date']} recorded the highest daily sales "
+        f"{best_day_date} recorded the highest daily sales "
         f"(${best_day['amount']:.2f})."
     )
 
@@ -87,8 +92,13 @@ def generate_insights(df: pd.DataFrame) -> list:
         daily_totals["amount"].idxmin()
     ]
 
+    # Convert datetime into a cleaner string format
+    worst_day_date = worst_day["date"].strftime(
+        "%Y-%m-%d"
+    )
+
     insights.append(
-        f"{worst_day['date']} recorded the lowest daily sales "
+        f"{worst_day_date} recorded the lowest daily sales "
         f"(${worst_day['amount']:.2f})."
     )
 
