@@ -228,6 +228,7 @@ if uploaded_file is not None:
     "Semicolon": ";"
     }
 
+    # Pandas expects header=None when the uploaded file has no header row.
     header_value = 0 if headers_included else None
 
     df = pd.read_csv(

@@ -1,3 +1,5 @@
+"""Small utility for loading a CSV file into a Pandas DataFrame."""
+
 import pandas as pd   # Import pandas so we can read CSV files
 
 def load_csv(path: str) -> pd.DataFrame:

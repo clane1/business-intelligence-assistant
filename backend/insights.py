@@ -72,35 +72,28 @@ def generate_insights(df: pd.DataFrame) -> list:
 
     daily_totals = sales_by_date(df)
 
-    # Highest sales day
-    best_day = daily_totals.loc[
-        daily_totals["amount"].idxmax()
-    ]
+    if daily_totals.empty:
+        insights.append("No valid dates were available for daily sales insights.")
+    else:
+        best_day = daily_totals.loc[
+            daily_totals["amount"].idxmax()
+        ]
+        best_day_date = best_day["date"].strftime("%Y-%m-%d")
 
-    # Convert datetime into a cleaner string format
-    best_day_date = best_day["date"].strftime(
-        "%Y-%m-%d"
-    )
+        insights.append(
+            f"{best_day_date} recorded the highest daily sales "
+            f"(${best_day['amount']:.2f})."
+        )
 
-    insights.append(
-        f"{best_day_date} recorded the highest daily sales "
-        f"(${best_day['amount']:.2f})."
-    )
+        worst_day = daily_totals.loc[
+            daily_totals["amount"].idxmin()
+        ]
+        worst_day_date = worst_day["date"].strftime("%Y-%m-%d")
 
-    # Lowest sales day
-    worst_day = daily_totals.loc[
-        daily_totals["amount"].idxmin()
-    ]
-
-    # Convert datetime into a cleaner string format
-    worst_day_date = worst_day["date"].strftime(
-        "%Y-%m-%d"
-    )
-
-    insights.append(
-        f"{worst_day_date} recorded the lowest daily sales "
-        f"(${worst_day['amount']:.2f})."
-    )
+        insights.append(
+            f"{worst_day_date} recorded the lowest daily sales "
+            f"(${worst_day['amount']:.2f})."
+        )
 
     # -----------------------------
     # CATEGORY DISTRIBUTION

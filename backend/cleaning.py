@@ -1,4 +1,7 @@
+"""Clean uploaded sales data before it is used for analysis."""
+
 import pandas as pd
+
 
 def clean_missing(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -22,6 +25,7 @@ def clean_types(df: pd.DataFrame) -> pd.DataFrame:
         df["amount"]
         .astype(str)
         .str.replace("$", "", regex=False)
+        .str.replace(",", "", regex=False)
         .str.strip()
     )
     df["amount"] = pd.to_numeric(df["amount"], errors="coerce")
@@ -60,8 +64,20 @@ def normalize_categories(df: pd.DataFrame, col: str) -> pd.DataFrame:
     Normalizes category labels:
     - lowercase
     - strip spaces
+    - removes accidental header rows and blank categories
     """
-    df[col] = df[col].astype(str).str.lower().str.strip()
+    df[col] = (
+        df[col]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .str.lower()
+    )
+
+    # Remove repeated CSV headers and empty category rows before analysis.
+    df = df[df[col] != col.lower()]
+    df = df[df[col] != ""]
+
     return df
 
 if __name__ == "__main__":

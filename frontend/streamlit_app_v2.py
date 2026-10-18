@@ -61,7 +61,10 @@ from backend.insights import (
 from backend.validation import (
     validate_columns,
     validate_missing,
-    validate_types
+    validate_types,
+    count_invalid_dates,
+    count_duplicates,
+    count_currency_values
 )
 
 from backend.cleaning import (
@@ -80,6 +83,68 @@ st.set_page_config(
     page_title="Clarity",
     page_icon="📊",
     layout="wide"
+)
+
+st.markdown(
+    """
+<style>
+
+/* Sidebar */
+
+section[data-testid="stSidebar"] {
+    background-color: #0b2f1d;
+}
+
+/* Sidebar text */
+
+section[data-testid="stSidebar"] * {
+    color: white;
+}
+
+/* Sidebar buttons */
+
+section[data-testid="stSidebar"] .stButton button {
+    color: white !important;
+    background-color: #174229;
+    border: 1px solid #ffffff33;
+    border-radius: 10px;
+}
+
+/* Hover effect */
+
+section[data-testid="stSidebar"] .stButton button:hover {
+    background-color: #1c5433;
+}
+
+/* Links and tables */
+
+a {
+    text-decoration: none;
+    color: #464feb;
+}
+
+div[data-testid="stMarkdownContainer"] table th,
+div[data-testid="stMarkdownContainer"] table td {
+    border: 1px solid #e6e6e6;
+}
+
+div[data-testid="stMarkdownContainer"] table th {
+    background-color: #f5f5f5;
+    color: #263238 !important;
+    font-weight: 600;
+}
+
+/* KPI cards */
+
+[data-testid="metric-container"] {
+    border: 1px solid #d9ded8;
+    border-radius: 12px;
+    padding: 15px;
+}
+
+</style>
+""",
+    unsafe_allow_html=True
 )
 
 # ==========================================
@@ -346,17 +411,34 @@ if st.session_state.current_step == 1:
     #
     # --------------------------------------
 
-    with st.expander(
-        "View Required CSV Format"
-    ):
+    st.markdown(
+        """
+    ### Sales Data Requirements
 
-        st.code(
-            """
-date,amount,category,item
-2024-01-01,25.48,Electronics,Mouse
-2024-01-02,15.99,Food,Coffee
-            """
-        )
+    The current version of the application expects a Sales Data CSV.
+
+    Required columns:
+
+    | Column | Description | Example |
+    |----------|----------|----------|
+    | date | Transaction date | 2024-01-01 |
+    | amount | Sale amount | 25.48 |
+    | category | Product category | Electronics |
+    | item | Product name | Mouse |
+
+    ### Example Dataset
+    """
+    )
+
+    st.code(
+        """
+    date,amount,category,item
+    2024-01-01,25.48,Electronics,Mouse
+    2024-01-02,15.99,Food,Coffee
+    2024-01-03,63.99,Clothing,Jacket
+    2024-01-04,119.99,Electronics,Monitor
+    """
+    )
 
     # --------------------------------------
     # FILE UPLOAD
@@ -483,15 +565,72 @@ if st.session_state.current_step == 2:
     st.header("Validation Results")
 
     if missing_columns:
-
         st.error(
             f"Missing columns: {missing_columns}"
         )
-
     else:
-
         st.success(
             "Required columns found."
+        )
+
+    # --------------------------------------
+    # VALIDATION SUMMARY
+    # --------------------------------------
+    #
+    # Provides a high-level overview of
+    # dataset quality before cleaning.
+    #
+    # This helps users quickly understand
+    # the condition of the uploaded file.
+    #
+    # --------------------------------------
+
+    total_missing = validate_missing(df).sum()
+
+    invalid_dates = (
+        count_invalid_dates(df)
+        if "date" in df.columns
+        else "N/A"
+    )
+    duplicate_rows = count_duplicates(df)
+    currency_values = (
+        count_currency_values(df)
+        if "amount" in df.columns
+        else "N/A"
+    )
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    col1.metric(
+        "Rows",
+        len(df)
+    )
+
+    col2.metric(
+        "Missing Values",
+        total_missing
+    )
+
+    col3.metric(
+        "Invalid Dates",
+        invalid_dates
+    )
+
+    col4.metric(
+        "Duplicates",
+        duplicate_rows
+    )
+
+    st.metric(
+        "Currency Values Requiring Cleaning",
+        currency_values
+    )
+
+    if "date" in df.columns and invalid_dates > 0:
+        st.warning(
+            f"Invalid Dates Found: {invalid_dates}\n\n"
+            "These records will be included in KPI calculations "
+            "but excluded from time-based visualisations."
         )
 
     st.subheader(
@@ -525,7 +664,7 @@ if st.session_state.current_step == 2:
             "No type issues detected."
         )
 
-    
+
     # Execute the cleaning pipeline.
     #
     # The cleaning module performs:
@@ -539,9 +678,17 @@ if st.session_state.current_step == 2:
     # The cleaned data is stored in Session
     # State and the user advances to the
     # Dashboard stage.
+    invalid_amounts = (
+        issues.get("amount") == "Non-numeric values detected"
+    )
+    if missing_columns:
+        st.info("Add the missing required columns before cleaning this dataset.")
+    elif invalid_amounts:
+        st.error("Correct non-numeric amount values before cleaning this dataset.")
+
     if st.button(
-        
-        "Clean Dataset & Continue"
+        "Clean Dataset & Continue",
+        disabled=bool(missing_columns or invalid_amounts)
     ):
 
         df = clean_missing(df)
@@ -560,12 +707,16 @@ if st.session_state.current_step == 2:
             "category"
         )
 
-        st.session_state.clean_df = df
+        if df.empty:
+            st.error(
+                "No rows remain after cleaning. Check that the dataset "
+                "contains usable category values."
+            )
+        else:
+            st.session_state.clean_df = df
+            st.session_state.current_step = 3
+            st.rerun()
 
-        st.session_state.current_step = 3
-
-        st.rerun()
-        
 # ==========================================
 # STEP 3 - DASHBOARD
 # ==========================================
@@ -650,6 +801,14 @@ if st.session_state.current_step == 3:
         kpis["transaction_count"]
     )
 
+    invalid_date_rows = int(df["date"].isna().sum())
+    if invalid_date_rows:
+        st.info(
+            f"{invalid_date_rows} record(s) have invalid or missing dates. "
+            "They are included in KPI calculations but excluded from "
+            "time-based visualisations."
+        )
+
     st.header("Sales by Category")
 
     category_df = sales_by_category(df)
@@ -658,19 +817,30 @@ if st.session_state.current_step == 3:
         category_df.set_index("category")
     )
 
-    st.header("Sales Over Time")
-
     daily_df = sales_by_date(df)
 
-    st.line_chart(
-        daily_df.set_index("date")
-    )
+    if daily_df.empty:
+        st.header("Daily Sales Trend")
+        st.info("No valid dates are available for the daily sales trend.")
+    else:
+        date_min = daily_df["date"].min()
+        date_max = daily_df["date"].max()
+
+        st.header(
+            f"Daily Sales Trend ({date_min:%Y-%m-%d} to {date_max:%Y-%m-%d})"
+        )
+
+        st.line_chart(
+            daily_df.set_index("date")
+        )
 
     st.header("Revenue Distribution")
 
     distribution_df = category_distribution(df)
 
-    st.dataframe(distribution_df)
+    st.bar_chart(
+        distribution_df.set_index("category")["percentage"]
+    )
 
     # Download cleaned dataset
 
@@ -750,6 +920,14 @@ if st.session_state.current_step == 4:
     # --------------------------------------
 
     df = st.session_state.clean_df
+
+    invalid_date_rows = int(df["date"].isna().sum())
+    if invalid_date_rows:
+        st.info(
+            f"{invalid_date_rows} record(s) have invalid or missing dates. "
+            "They are included in KPI calculations but excluded from "
+            "time-based insights."
+        )
 
     # --------------------------------------
     # GENERATE INSIGHTS

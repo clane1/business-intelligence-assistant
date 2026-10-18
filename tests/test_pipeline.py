@@ -27,6 +27,14 @@ sys.path.append(
 )
 
 # Import project modules
+from backend.cleaning import (
+    clean_missing,
+    clean_types,
+    clean_dates,
+    clean_duplicates,
+    normalize_categories
+)
+
 from backend.transformation import (
     calculate_kpis,
     sales_by_category,
@@ -41,10 +49,17 @@ print("\n===================================")
 print("BUSINESS INTELLIGENCE PIPELINE TEST")
 print("===================================\n")
 
-# Load sample dataset
+# Run this script from the project root so the relative data path resolves.
 df = pd.read_csv("data/sample_data.csv")
 
 print("Dataset loaded successfully.\n")
+
+# Apply the same cleaning steps used by the application before analysis.
+df = clean_missing(df)
+df = clean_types(df)
+df = clean_dates(df, ["date"])
+df = clean_duplicates(df)
+df = normalize_categories(df, "category")
 
 # ----------------------------
 # KPI TEST

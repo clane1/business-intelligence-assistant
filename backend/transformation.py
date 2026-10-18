@@ -1,3 +1,5 @@
+"""Aggregate cleaned sales data into dashboard metrics and chart tables."""
+
 import pandas as pd
 
 
@@ -18,7 +20,7 @@ def calculate_kpis(df: pd.DataFrame) -> dict:
         errors="coerce"
     )
 
-    # Replace invalid values with 0
+    # Treat unparseable amounts as zero so they do not break the KPI totals.
     amount_values = amount_values.fillna(0)
 
     total_sales = float(
@@ -112,10 +114,12 @@ def category_distribution(df: pd.DataFrame) -> pd.DataFrame:
         .reset_index()
     )
 
-    # Calculate percentage contribution
-    distribution["percentage"] = (
-        distribution["amount"] / total_sales * 100
-    ).round(2)
+    if total_sales == 0:
+        distribution["percentage"] = 0.0
+    else:
+        distribution["percentage"] = (
+            distribution["amount"] / total_sales * 100
+        ).round(2)
 
     return distribution
 
