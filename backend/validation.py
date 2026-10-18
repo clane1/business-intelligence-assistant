@@ -100,7 +100,7 @@ def count_currency_values(df: pd.DataFrame) -> int:
 
 
 if __name__ == "__main__":
-    df = pd.read_csv("data/sample_data.csv")
+    df = pd.read_csv("data/sales/sales_sample_10.csv")
 
     print("Checking required columns...")
     print(validate_columns(df, ["date", "amount", "category", "item"]))

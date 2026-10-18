@@ -71,19 +71,20 @@ def normalize_categories(df: pd.DataFrame, col: str) -> pd.DataFrame:
         .fillna("")
         .astype(str)
         .str.strip()
-        .str.lower()
+        .str.casefold()
     )
 
     # Remove repeated CSV headers and empty category rows before analysis.
-    df = df[df[col] != col.lower()]
+    df = df[df[col] != col.casefold()]
     df = df[df[col] != ""]
+    df[col] = df[col].str.title()
 
     return df
 
 if __name__ == "__main__":
     print("Cleaning started...")
 
-    df = pd.read_csv("data/messy_data.csv")
+    df = pd.read_csv("data/sales/sales_messy_11.csv")
 
     df = clean_missing(df)
     df = clean_types(df)

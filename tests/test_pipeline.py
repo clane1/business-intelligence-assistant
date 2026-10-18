@@ -50,7 +50,7 @@ print("BUSINESS INTELLIGENCE PIPELINE TEST")
 print("===================================\n")
 
 # Run this script from the project root so the relative data path resolves.
-df = pd.read_csv("data/sample_data.csv")
+df = pd.read_csv("data/sales/sales_sample_10.csv")
 
 print("Dataset loaded successfully.\n")
 

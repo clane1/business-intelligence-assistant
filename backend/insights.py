@@ -151,7 +151,7 @@ if __name__ == "__main__":
     print("Insights module started...")
 
     # Load sample data
-    df = pd.read_csv("data/sample_data.csv")
+    df = pd.read_csv("data/sales/sales_sample_10.csv")
 
     # Generate insights from the dataset
     insights = generate_insights(df)

@@ -30,7 +30,7 @@ if __name__ == "__main__":
         print("Script started")
 
         # Try to load the CSV file from the data folder
-        df = load_csv("data/sample_data.csv")
+        df = load_csv("data/sales/sales_sample_10.csv")
 
         # If df is not None, print the first few rows
         if df is not None:

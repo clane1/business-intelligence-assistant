@@ -424,9 +424,12 @@ if st.session_state.current_step == 1:
         """
     ### Sales Data Requirements
 
-    The current version of the application expects a Sales Data CSV.
-
     """
+    )
+
+    st.info(
+        "Sales Data is the only supported dataset type right now. "
+        "Other business data types are not available yet."
     )
 
     st.info(
@@ -585,6 +588,17 @@ if st.session_state.current_step == 2:
 
     st.header("Validation Results")
 
+    st.subheader("Dataset Preview")
+    st.dataframe(
+        df.head(10),
+        use_container_width=True
+    )
+
+    st.subheader("Dataset Shape")
+    st.write(
+        f"{len(df)} rows × {len(df.columns)} columns"
+    )
+
     if missing_columns:
         st.error(
             f"Missing columns: {missing_columns}"
@@ -611,13 +625,19 @@ if st.session_state.current_step == 2:
     invalid_dates = (
         count_invalid_dates(df)
         if "date" in df.columns
-        else "N/A"
+        else 0
     )
     duplicate_rows = count_duplicates(df)
     currency_values = (
         count_currency_values(df)
         if "amount" in df.columns
         else "N/A"
+    )
+    currency_summary = (
+        f"{currency_values} currency-formatted amount(s)"
+        if "amount" in df.columns
+        else "currency-formatted amount count unavailable because "
+        "the amount column is missing"
     )
 
     col1, col2, col3, col4, col5 = st.columns(5)
@@ -654,6 +674,15 @@ if st.session_state.current_step == 2:
             "but excluded from time-based visualisations."
         )
 
+    st.info(
+        f"Validation found {total_missing} missing value(s), "
+        f"{duplicate_rows} duplicate row(s), {currency_summary}, and "
+        f"{invalid_dates} invalid or missing date(s). "
+        "Cleaning fills supported missing fields, removes duplicate rows, "
+        "and normalizes currency amounts. Invalid dates are not repaired "
+        "and remain excluded from time-based analysis."
+    )
+
     st.subheader(
         "Missing Values"
     )
@@ -677,7 +706,9 @@ if st.session_state.current_step == 2:
 
     issues = validate_types(df)
 
-    if issues:
+    if missing_columns:
+        st.info("Amount type checks are unavailable until required columns are present.")
+    elif issues:
         st.json(issues)
 
     else:
@@ -836,6 +867,12 @@ if st.session_state.current_step == 3:
             f"Invalid or missing dates found: {summary['invalid_dates']}; "
             "these remain unavailable for time-based analysis."
         )
+
+    st.subheader("Cleaned Dataset Preview")
+    st.dataframe(
+        df.head(10),
+        use_container_width=True
+    )
 
     col1, col2, col3, col4 = st.columns(4)
 

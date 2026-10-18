@@ -129,7 +129,7 @@ if __name__ == "__main__":
     print("Transformation module started...")
 
     # Load sample data for testing
-    df = pd.read_csv("data/sample_data.csv")
+    df = pd.read_csv("data/sales/sales_sample_10.csv")
 
     print("\n=== KPI SUMMARY ===")
     print(calculate_kpis(df))
