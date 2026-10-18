@@ -110,6 +110,11 @@ section[data-testid="stSidebar"] .stButton button {
     border-radius: 10px;
 }
 
+section[data-testid="stSidebar"] .stButton button p {
+    color: white !important;
+    font-weight: 600;
+}
+
 /* Hover effect */
 
 section[data-testid="stSidebar"] .stButton button:hover {
@@ -184,6 +189,9 @@ if "raw_df" not in st.session_state:
 
 if "clean_df" not in st.session_state:
     st.session_state.clean_df = None
+
+if "cleaning_summary" not in st.session_state:
+    st.session_state.cleaning_summary = None
 
 if "dataset_type" not in st.session_state:
     st.session_state.dataset_type = "Sales Data"
@@ -287,6 +295,7 @@ with st.sidebar:
         st.session_state.current_step = 1
         st.session_state.raw_df = None
         st.session_state.clean_df = None
+        st.session_state.cleaning_summary = None
         st.session_state.dataset_type = "Sales Data"
 
         st.rerun()
@@ -417,6 +426,17 @@ if st.session_state.current_step == 1:
 
     The current version of the application expects a Sales Data CSV.
 
+    """
+    )
+
+    st.info(
+        "Use YYYY-MM-DD when possible (for example, 2024-01-31). "
+        "Other common formats may be accepted, but dates that cannot be "
+        "parsed will be excluded from timeline charts and daily insights."
+    )
+
+    st.markdown(
+        """
     Required columns:
 
     | Column | Description | Example |
@@ -494,6 +514,7 @@ if st.session_state.current_step == 1:
         # modules later in the workflow.
 
         st.session_state.raw_df = df
+        st.session_state.cleaning_summary = None
 
         st.success(
             "Dataset uploaded successfully."
@@ -599,7 +620,7 @@ if st.session_state.current_step == 2:
         else "N/A"
     )
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     col1.metric(
         "Rows",
@@ -621,8 +642,8 @@ if st.session_state.current_step == 2:
         duplicate_rows
     )
 
-    st.metric(
-        "Currency Values Requiring Cleaning",
+    col5.metric(
+        "Currency Values",
         currency_values
     )
 
@@ -691,6 +712,11 @@ if st.session_state.current_step == 2:
         disabled=bool(missing_columns or invalid_amounts)
     ):
 
+        rows_before = len(df)
+        missing_cells_before = int(df[required_columns].isna().sum().sum())
+        invalid_dates_before = count_invalid_dates(df)
+        df = df.copy()
+
         df = clean_missing(df)
 
         df = clean_types(df)
@@ -700,12 +726,16 @@ if st.session_state.current_step == 2:
             ["date"]
         )
 
+        rows_before_deduplication = len(df)
         df = clean_duplicates(df)
+        duplicates_removed = rows_before_deduplication - len(df)
 
+        rows_before_category_filter = len(df)
         df = normalize_categories(
             df,
             "category"
         )
+        category_rows_removed = rows_before_category_filter - len(df)
 
         if df.empty:
             st.error(
@@ -714,6 +744,14 @@ if st.session_state.current_step == 2:
             )
         else:
             st.session_state.clean_df = df
+            st.session_state.cleaning_summary = {
+                "rows_before": rows_before,
+                "rows_after": len(df),
+                "duplicates_removed": duplicates_removed,
+                "category_rows_removed": category_rows_removed,
+                "missing_cells_filled": missing_cells_before,
+                "invalid_dates": invalid_dates_before,
+            }
             st.session_state.current_step = 3
             st.rerun()
 
@@ -772,19 +810,34 @@ if st.session_state.current_step == 3:
     #     - Total Sales
     #     - Average Sale Value
     #     - Transaction Count
+    #     - Top Category
     #
     # Future versions may include:
     #
     #     - Highest Sale
     #     - Lowest Sale
-    #     - Top Category
     #     - Revenue Growth
     #
     # --------------------------------------
 
     kpis = calculate_kpis(df)
+    category_df = sales_by_category(df)
 
-    col1, col2, col3 = st.columns(3)
+    if st.session_state.cleaning_summary:
+        summary = st.session_state.cleaning_summary
+        st.subheader("Cleaning Summary")
+        st.success(
+            f"Cleaning complete. Rows: {summary['rows_before']} before, "
+            f"{summary['rows_after']} after. "
+            f"Duplicates removed: {summary['duplicates_removed']}. "
+            f"Rows removed for blank or repeated-header categories: "
+            f"{summary['category_rows_removed']}. "
+            f"Missing cells filled: {summary['missing_cells_filled']}. "
+            f"Invalid or missing dates found: {summary['invalid_dates']}; "
+            "these remain unavailable for time-based analysis."
+        )
+
+    col1, col2, col3, col4 = st.columns(4)
 
     col1.metric(
         "Total Sales",
@@ -801,6 +854,11 @@ if st.session_state.current_step == 3:
         kpis["transaction_count"]
     )
 
+    col4.metric(
+        "Top Category",
+        category_df.iloc[0]["category"].title()
+    )
+
     invalid_date_rows = int(df["date"].isna().sum())
     if invalid_date_rows:
         st.info(
@@ -811,11 +869,12 @@ if st.session_state.current_step == 3:
 
     st.header("Sales by Category")
 
-    category_df = sales_by_category(df)
-
-    st.bar_chart(
-        category_df.set_index("category")
-    )
+    if category_df["amount"].ne(0).any():
+        st.bar_chart(
+            category_df.set_index("category")
+        )
+    else:
+        st.info("No non-zero sales are available to compare by category.")
 
     daily_df = sales_by_date(df)
 
@@ -830,16 +889,27 @@ if st.session_state.current_step == 3:
             f"Daily Sales Trend ({date_min:%Y-%m-%d} to {date_max:%Y-%m-%d})"
         )
 
-        st.line_chart(
-            daily_df.set_index("date")
-        )
+        if daily_df["amount"].ne(0).any():
+            st.line_chart(
+                daily_df.set_index("date")
+            )
+        else:
+            st.info("No non-zero sales are available for the daily trend.")
 
     st.header("Revenue Distribution")
 
     distribution_df = category_distribution(df)
 
-    st.bar_chart(
-        distribution_df.set_index("category")["percentage"]
+    if kpis["total_sales"] != 0:
+        st.bar_chart(
+            distribution_df.set_index("category")["percentage"]
+        )
+    else:
+        st.info("Revenue shares are unavailable because total sales net to zero.")
+    st.dataframe(
+        distribution_df,
+        hide_index=True,
+        use_container_width=True
     )
 
     # Download cleaned dataset

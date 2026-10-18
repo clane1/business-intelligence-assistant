@@ -50,21 +50,20 @@ def generate_insights(df: pd.DataFrame) -> list:
 
     category_totals = sales_by_category(df)
 
-    # Highest revenue category
-    top_category = category_totals.iloc[0]
+    if category_totals["amount"].ne(0).any():
+        top_category = category_totals.iloc[0]
+        insights.append(
+            f"{top_category['category']} generated the highest revenue "
+            f"(${top_category['amount']:.2f})."
+        )
 
-    insights.append(
-        f"{top_category['category']} generated the highest revenue "
-        f"(${top_category['amount']:.2f})."
-    )
-
-    # Lowest revenue category
-    bottom_category = category_totals.iloc[-1]
-
-    insights.append(
-        f"{bottom_category['category']} generated the lowest revenue "
-        f"(${bottom_category['amount']:.2f})."
-    )
+        bottom_category = category_totals.iloc[-1]
+        insights.append(
+            f"{bottom_category['category']} generated the lowest revenue "
+            f"(${bottom_category['amount']:.2f})."
+        )
+    else:
+        insights.append("No non-zero sales were available for category insights.")
 
     # -----------------------------
     # DAILY SALES ANALYSIS
@@ -74,6 +73,8 @@ def generate_insights(df: pd.DataFrame) -> list:
 
     if daily_totals.empty:
         insights.append("No valid dates were available for daily sales insights.")
+    elif not daily_totals["amount"].ne(0).any():
+        insights.append("No non-zero sales were available for daily insights.")
     else:
         best_day = daily_totals.loc[
             daily_totals["amount"].idxmax()
@@ -101,14 +102,19 @@ def generate_insights(df: pd.DataFrame) -> list:
 
     distribution = category_distribution(df)
 
-    top_distribution = distribution.loc[
-        distribution["percentage"].idxmax()
-    ]
+    if total_sales == 0:
+        insights.append(
+            "Category revenue shares are unavailable because total sales are zero."
+        )
+    else:
+        top_distribution = distribution.loc[
+            distribution["percentage"].idxmax()
+        ]
 
-    insights.append(
-        f"{top_distribution['category']} accounts for "
-        f"{top_distribution['percentage']:.2f}% of total revenue."
-    )
+        insights.append(
+            f"{top_distribution['category']} accounts for "
+            f"{top_distribution['percentage']:.2f}% of total revenue."
+        )
 
     # -----------------------------
     # GENERAL KPI OBSERVATIONS
