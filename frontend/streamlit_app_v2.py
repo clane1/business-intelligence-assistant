@@ -75,7 +75,15 @@ from backend.cleaning import (
     normalize_categories
 )
 
-from frontend.charts import render_sales_trend
+from frontend.charts import format_display_date, render_sales_trend
+
+
+def _format_count(count: int | str, item: str) -> str:
+    if isinstance(count, str):
+        return count
+    suffix = "" if count == 1 else "s"
+    return f"{count} {item}{suffix}"
+
 
 # ==========================================
 # PAGE SETTINGS
@@ -242,13 +250,13 @@ with st.sidebar:
     if st.session_state.current_step >= 2:
 
         if st.button(
-            "02 Validation",
+            "02 Check your data",
             use_container_width=True
         ):
             st.session_state.current_step = 2
 
     else:
-        st.caption("🔒 Validation")
+        st.caption("🔒 Check your data")
 
     # ----------------------
     # STEP 3
@@ -415,9 +423,10 @@ if st.session_state.current_step == 1:
 
     st.info(
         "Sales data is the only supported type right now. Amounts may include "
-        "dollar signs and commas. Dates are easiest to read as YYYY-MM-DD "
-        "(for example, 2024-01-31). Dates the app cannot read are left out of "
-        "date-based charts and insights, but their sales amounts still count "
+        "dollar signs and commas. For best results, enter dates in "
+        "year-month-day order, like 2024-01-31. Dates the app cannot read "
+        "aren't shown in the sales trend or date-related insights, but their "
+        "sales amounts still count "
         "in the totals."
     )
 
@@ -514,7 +523,7 @@ if st.session_state.current_step == 1:
         # application to render Step 2.
 
         if st.button(
-            "Continue to Validation"
+            "Continue to data checks"
         ):
             st.session_state.current_step = 2
             st.rerun()
@@ -567,7 +576,7 @@ if st.session_state.current_step == 2:
         required_columns
     )
 
-    st.header("Validation Results")
+    st.header("Data check results")
 
     st.subheader("Dataset Preview")
     st.dataframe(
@@ -575,15 +584,21 @@ if st.session_state.current_step == 2:
         use_container_width=True
     )
 
-    st.subheader("Dataset Shape")
+    st.subheader("Your file at a glance")
     st.write(
-        f"{len(df)} rows × {len(df.columns)} columns"
+        f"{len(df)} rows and {len(df.columns)} columns"
     )
 
     if missing_columns:
-        st.error(
-            f"Your file is missing required column(s): {', '.join(missing_columns)}."
-        )
+        if len(missing_columns) == 1:
+            st.error(
+                f"Your file is missing the required {missing_columns[0]} column."
+            )
+        else:
+            st.error(
+                "Your file is missing these required columns: "
+                f"{', '.join(missing_columns)}."
+            )
     else:
         st.success(
             "Your file has all the columns needed for sales analysis."
@@ -606,19 +621,13 @@ if st.session_state.current_step == 2:
     invalid_dates = (
         count_invalid_dates(df)
         if "date" in df.columns
-        else 0
+        else "Unavailable"
     )
     duplicate_rows = count_duplicates(df)
     currency_values = (
         count_currency_values(df)
         if "amount" in df.columns
-        else "N/A"
-    )
-    currency_summary = (
-        f"{currency_values} amount(s) with dollar signs or commas"
-        if "amount" in df.columns
-        else "amount-format check unavailable because the amount column "
-        "is missing"
+        else "Unavailable"
     )
 
     col1, col2, col3, col4, col5 = st.columns(5)
@@ -652,17 +661,23 @@ if st.session_state.current_step == 2:
         st.warning(
             f"The app couldn't read {invalid_dates} date(s). Their sales "
             "amounts will still count in the totals, but these rows won't "
-            "appear in date-based charts or insights."
+            "appear in the sales trend or date-related insights."
         )
 
-    st.info(
-        f"Your file has {total_missing} empty cell(s), {duplicate_rows} "
-        f"repeated row(s), {currency_summary}, and {invalid_dates} date(s) "
-        "the app can't read. Cleaning fills supported empty cells, removes "
-        "exactly repeated rows, and converts dollar-formatted amounts. "
-        "Unreadable dates are not changed; those rows are left out of "
-        "date-based charts and insights."
-    )
+    if missing_columns:
+        st.info(
+            "Some checks aren't available until you add all required columns."
+        )
+    else:
+        st.info(
+            f"Your file has {_format_count(total_missing, 'empty cell')}, "
+            f"{_format_count(duplicate_rows, 'repeated row')}, "
+            f"{_format_count(currency_values, 'amount with dollar signs or commas')}, "
+            f"and {_format_count(invalid_dates, 'unreadable date')}. Cleaning fills "
+            "empty cells, removes repeated rows, and cleans supported amount "
+            "formats. Unreadable dates are left unchanged and excluded from "
+            "sales trend or date-related insights."
+        )
 
     st.subheader(
         "Empty cells by column"
@@ -689,8 +704,16 @@ if st.session_state.current_step == 2:
 
     if missing_columns:
         st.info("Amount checks are unavailable until the required columns are present.")
-    elif issues:
-        st.json(issues)
+    elif issues.get("amount") == "Non-numeric values detected":
+        st.error(
+            "Some values in the amount column aren't numbers. Correct those "
+            "values before cleaning this file."
+        )
+    elif issues.get("amount") == "Currency-formatted values require cleaning":
+        st.info(
+            "Some amounts include dollar signs or commas. The app will "
+            "remove those when it cleans the data."
+        )
 
     else:
         st.success("Sale amounts look ready to use.")
@@ -709,17 +732,15 @@ if st.session_state.current_step == 2:
     # The cleaned data is stored in Session
     # State and the user advances to the
     # Dashboard stage.
-    invalid_amounts = (
-        issues.get("amount") == "Non-numeric values detected"
-    )
     if missing_columns:
         st.info("Add the missing required columns before cleaning this dataset.")
-    elif invalid_amounts:
-        st.error("Correct non-numeric amount values before cleaning this dataset.")
 
     if st.button(
         "Clean data and view dashboard",
-        disabled=bool(missing_columns or invalid_amounts)
+        disabled=bool(
+            missing_columns
+            or issues.get("amount") == "Non-numeric values detected"
+        )
     ):
 
         rows_before = len(df)
@@ -797,7 +818,7 @@ if st.session_state.current_step == 3:
     )
 
     st.title(
-        "Business Dashboard"
+        "Sales dashboard"
     )
     
     # Retrieve the cleaned dataset produced
@@ -835,20 +856,28 @@ if st.session_state.current_step == 3:
 
     if st.session_state.cleaning_summary:
         summary = st.session_state.cleaning_summary
-        st.subheader("What changed during cleaning")
+        st.subheader("What the app changed")
         st.success(
             f"Kept {summary['rows_after']} of {summary['rows_before']} rows. "
-            f"Removed {summary['duplicates_removed']} repeated row(s) and "
-            f"{summary['category_rows_removed']} row(s) with blank or invalid "
-            "category names. "
-            f"Filled {summary['missing_cells_filled']} empty cell(s). "
-            f"The app couldn't read {summary['invalid_dates']} date(s); "
-            "those rows are not included in date-based charts or insights."
+            f"Removed {_format_count(summary['duplicates_removed'], 'repeated row')} "
+            f"and {_format_count(summary['category_rows_removed'], 'category row')} "
+            "with blank or unrecognized names. "
+            f"Filled {_format_count(summary['missing_cells_filled'], 'empty cell')}. "
+            f"The app couldn't read {_format_count(summary['invalid_dates'], 'date')}; "
+            "those rows are not included in the sales trend or date-related insights."
         )
 
     st.subheader("Cleaned Dataset Preview")
+    cleaned_preview = df.head(10).copy()
+    cleaned_preview["date"] = cleaned_preview["date"].map(
+        lambda date: (
+            format_display_date(date)
+            if pd.notna(date)
+            else "Not available"
+        )
+    )
     st.dataframe(
-        df.head(10),
+        cleaned_preview,
         use_container_width=True
     )
 
@@ -860,19 +889,19 @@ if st.session_state.current_step == 3:
     )
 
     col2.metric(
-        "Average per transaction",
+        "Average sale",
         f"${kpis['average_sale']:.2f}"
     )
 
     col3.metric(
-        "Number of transactions",
+        "Sales records",
         kpis["transaction_count"]
     )
 
     top_category = (
         category_df.iloc[0]["category"].title()
         if category_df["amount"].ne(0).any()
-        else "N/A"
+        else "No sales"
     )
     col4.metric(
         "Top sales category",
@@ -888,11 +917,11 @@ if st.session_state.current_step == 3:
     if invalid_date_rows:
         st.info(
             f"The app couldn't read {invalid_date_rows} date(s). Those rows "
-            "still count in the sales totals, but not in date-based charts "
+            "still count in the sales totals, but not in the sales trend "
             "or insights."
         )
 
-    st.header("Sales by product category")
+    st.header(    "Sales by product category (dollars)")
 
     if category_df["amount"].ne(0).any():
         st.bar_chart(
@@ -918,13 +947,13 @@ if st.session_state.current_step == 3:
         frequency_label = frequency_labels[trend_frequency]
 
         st.header(
-            f"{frequency_label} Sales Trend "
-            f"({date_min:%Y-%m-%d} to {date_max:%Y-%m-%d})"
+            f"{frequency_label} sales: {format_display_date(date_min)} to "
+            f"{format_display_date(date_max)}"
         )
         st.caption(
-            f"Each point is the sales total for one {trend_frequency}. "
-            "The app chooses daily, weekly, or monthly totals based on the "
-            "date range in your file."
+            f"Each point shows the total sales for one {trend_frequency}. "
+            "The chart groups sales by day, week, or month based on the "
+            "dates in your file."
         )
 
         if trend_df["amount"].ne(0).any():
@@ -1040,7 +1069,7 @@ if st.session_state.current_step == 4:
     if invalid_date_rows:
         st.info(
             f"The app couldn't read {invalid_date_rows} date(s). Those rows "
-            "still count in the sales totals, but not in date-based insights."
+            "still count in the sales totals, but not in date-related insights."
         )
 
     # --------------------------------------
@@ -1096,11 +1125,11 @@ if st.session_state.current_step == 4:
     insight_text = "\n".join(insights)
 
     st.header(
-        "Export Results"
+        "Download your results"
     )
 
     st.download_button(
-        label="Download Insights Report",
+        label="Download sales highlights",
         data=insight_text,
         file_name="business_insights.txt",
         mime="text/plain"
@@ -1122,23 +1151,9 @@ if st.session_state.current_step == 4:
     #
     # --------------------------------------
 
-    st.header(
-        "Future Features"
+    st.caption(
+        "Saving an analysis and comparing multiple files are not available yet."
     )
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-
-        st.button(
-            "Save Analysis (Future)"
-        )
-
-    with col2:
-
-        st.button(
-            "Compare Results (Future)"
-        )
 
     # --------------------------------------
     # WORKFLOW COMPLETE

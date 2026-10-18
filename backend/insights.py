@@ -80,7 +80,7 @@ def generate_insights(df: pd.DataFrame) -> list:
 
     if period_totals.empty:
         insights.append(
-            "The app could not read any dates, so a sales trend is unavailable."
+            "No readable dates were found, so a sales trend is unavailable."
         )
     elif not period_totals["amount"].ne(0).any():
         insights.append("There are no sales amounts to compare over time.")
@@ -103,8 +103,14 @@ def generate_insights(df: pd.DataFrame) -> list:
                 f"(${worst_period['amount']:.2f})."
             )
         elif frequency == "week":
-            best_period_label = best_period["date"].strftime("%Y-%m-%d")
-            worst_period_label = worst_period["date"].strftime("%Y-%m-%d")
+            best_period_label = (
+                f"{best_period['date']:%B} {best_period['date'].day}, "
+                f"{best_period['date'].year}"
+            )
+            worst_period_label = (
+                f"{worst_period['date']:%B} {worst_period['date'].day}, "
+                f"{worst_period['date'].year}"
+            )
             best_period_insight = (
                 f"The week starting {best_period_label} had the most sales "
                 f"(${best_period['amount']:.2f})."
@@ -114,8 +120,14 @@ def generate_insights(df: pd.DataFrame) -> list:
                 f"(${worst_period['amount']:.2f})."
             )
         else:
-            best_period_label = best_period["date"].strftime("%Y-%m-%d")
-            worst_period_label = worst_period["date"].strftime("%Y-%m-%d")
+            best_period_label = (
+                f"{best_period['date']:%B} {best_period['date'].day}, "
+                f"{best_period['date'].year}"
+            )
+            worst_period_label = (
+                f"{worst_period['date']:%B} {worst_period['date'].day}, "
+                f"{worst_period['date'].year}"
+            )
             best_period_insight = (
                 f"Sales were highest on {best_period_label} "
                 f"(${best_period['amount']:.2f})."
@@ -152,14 +164,18 @@ def generate_insights(df: pd.DataFrame) -> list:
     # GENERAL KPI OBSERVATIONS
     # -----------------------------
 
+    record_label = (
+        "sales record"
+        if kpis["transaction_count"] == 1
+        else "sales records"
+    )
     insights.append(
-        f"Recorded sales totaled ${total_sales:.2f} across "
-        f"{kpis['transaction_count']} transactions."
+        f"Total sales were ${total_sales:.2f} across "
+        f"{kpis['transaction_count']} {record_label}."
     )
 
     insights.append(
-        f"The average amount per transaction was "
-        f"${average_sale:.2f}."
+        f"The average sale was ${average_sale:.2f}."
     )
 
     return insights

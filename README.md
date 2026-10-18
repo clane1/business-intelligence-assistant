@@ -33,16 +33,17 @@ Open the local URL printed by Streamlit in a browser. To stop the server, press
 ## Use the application
 
 1. Upload a sales CSV.
-2. Review required-column checks, data-quality metrics, dataset shape, and the
-   uploaded-data preview.
+2. Check which columns are present, review empty cells and unusual dates, and
+   preview the uploaded file.
 3. Run cleaning when the required columns are present; review the cleaning
    summary and cleaned-data preview.
 4. Explore the dashboard and generated insights.
 
 The app can clean amounts that contain dollar signs or commas, fill supported
 empty cells, remove repeated rows, and make category names consistent. Use
-`YYYY-MM-DD` dates when possible. Dates the app cannot read are left out of
-date-based charts and insights, but their amounts still count in sales totals.
+year-month-day dates such as `2024-01-31` when possible. Dates the app cannot
+read are left out of the sales trend and date-related insights, but their
+amounts still count in sales totals.
 The trend chart groups sales by day, week, or month depending on the date span.
 
 If a file includes negative amounts, they reduce the sales total and may

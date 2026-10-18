@@ -5,13 +5,29 @@ import pandas as pd
 import streamlit as st
 
 
+def format_display_date(value: pd.Timestamp) -> str:
+    """Format a date as a full month name and an unpadded day."""
+    return f"{value:%B} {value.day}, {value.year}"
+
+
 def build_sales_trend_chart(
     trend_df: pd.DataFrame,
     frequency: str,
 ) -> alt.Chart:
     """Build a chronological trend chart with explicit period labels."""
-    label_format = "%b '%y" if frequency == "month" else "%b %d '%y"
-    chart_df = trend_df.assign(period=trend_df["date"].dt.strftime(label_format))
+    dates = trend_df["date"]
+    if frequency == "month":
+        period_labels = dates.map(lambda date: f"{date:%b} {date.year}")
+        tooltip_periods = dates.map(lambda date: f"{date:%B} {date.year}")
+    else:
+        period_labels = dates.map(
+            lambda date: f"{date:%b} {date.day}, {date.year}"
+        )
+        tooltip_periods = dates.map(format_display_date)
+    chart_df = trend_df.assign(
+        period=period_labels,
+        tooltip_period=tooltip_periods,
+    )
     period_order = chart_df["period"].tolist()
     label_step = (
         1
@@ -43,9 +59,8 @@ def build_sales_trend_chart(
             y=alt.Y("amount:Q", title="Sales"),
             tooltip=[
                 alt.Tooltip(
-                    "date:T",
+                    "tooltip_period:N",
                     title=tooltip_title,
-                    format="%b %d, %Y",
                 ),
                 alt.Tooltip("amount:Q", title="Sales", format="$,.2f"),
             ],

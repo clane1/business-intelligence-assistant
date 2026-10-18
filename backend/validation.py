@@ -89,12 +89,12 @@ def count_duplicates(df: pd.DataFrame) -> int:
 
 def count_currency_values(df: pd.DataFrame) -> int:
     """
-    Counts values containing currency symbols that will require cleaning.
+    Counts amounts with dollar signs or thousands separators to clean.
     """
     return int(
         df["amount"]
         .astype(str)
-        .str.contains(r"\$")
+        .str.contains(r"[\$,]")
         .sum()
     )
 

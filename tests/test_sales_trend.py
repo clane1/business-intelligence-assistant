@@ -19,7 +19,11 @@ from backend.transformation import (
     sales_by_category,
     sales_by_time_period,
 )
-from backend.validation import count_invalid_dates, validate_columns
+from backend.validation import (
+    count_currency_values,
+    count_invalid_dates,
+    validate_columns,
+)
 from frontend.charts import build_sales_trend_chart
 
 
@@ -93,16 +97,22 @@ class SalesTrendTests(unittest.TestCase):
     ) -> None:
         cases = [
             ("day", pd.date_range("2025-12-30", periods=4, freq="D"),
-             ["Dec 30 '25", "Dec 31 '25", "Jan 01 '26", "Jan 02 '26"]),
+             [
+                 "Dec 30, 2025", "Dec 31, 2025",
+                 "Jan 1, 2026", "Jan 2, 2026",
+             ]),
             ("week", pd.date_range("2025-11-24", periods=4, freq="W-MON"),
-             ["Nov 24 '25", "Dec 01 '25", "Dec 08 '25", "Dec 15 '25"]),
+             [
+                 "Nov 24, 2025", "Dec 1, 2025",
+                 "Dec 8, 2025", "Dec 15, 2025",
+             ]),
             (
                 "month",
                 pd.date_range("2025-03-01", periods=12, freq="MS"),
                 [
-                    "Mar '25", "Apr '25", "May '25", "Jun '25",
-                    "Jul '25", "Aug '25", "Sep '25", "Oct '25",
-                    "Nov '25", "Dec '25", "Jan '26", "Feb '26",
+                    "Mar 2025", "Apr 2025", "May 2025", "Jun 2025",
+                    "Jul 2025", "Aug 2025", "Sep 2025", "Oct 2025",
+                    "Nov 2025", "Dec 2025", "Jan 2026", "Feb 2026",
                 ],
             ),
         ]
@@ -115,10 +125,8 @@ class SalesTrendTests(unittest.TestCase):
                         "amount": [float(i) for i in range(1, len(dates) + 1)],
                     }
                 )
-                chart_spec = build_sales_trend_chart(
-                    trend,
-                    frequency,
-                ).to_dict()
+                chart = build_sales_trend_chart(trend, frequency)
+                chart_spec = chart.to_dict()
 
                 self.assertEqual(
                     chart_spec["encoding"]["x"]["sort"],
@@ -128,6 +136,59 @@ class SalesTrendTests(unittest.TestCase):
                     chart_spec["encoding"]["x"]["axis"]["values"],
                     expected_labels,
                 )
+                self.assertEqual(
+                    chart.data["tooltip_period"].iloc[0],
+                    "March 2025"
+                    if frequency == "month"
+                    else f"{dates[0]:%B} {dates[0].day}, {dates[0].year}",
+                )
+
+    def test_insight_dates_use_readable_month_names(self) -> None:
+        cases = [
+            (
+                ["2024-01-01", "2024-01-02"],
+                "January 2, 2024",
+            ),
+            (
+                ["2024-01-01", "2024-02-10"],
+                "week starting February 5, 2024",
+            ),
+            (
+                ["2024-01-01", "2024-08-01"],
+                "August 2024",
+            ),
+        ]
+
+        for date_values, expected_date in cases:
+            with self.subTest(expected_date=expected_date):
+                df = pd.DataFrame(
+                    {
+                        "date": pd.to_datetime(date_values),
+                        "amount": [10.0, 20.0],
+                        "category": ["Food", "Books"],
+                        "item": ["Coffee", "Novel"],
+                    }
+                )
+
+                insights = generate_insights(df)
+                insight_text = " ".join(insights)
+
+                self.assertIn(expected_date, insight_text)
+                self.assertNotIn("2024-", insight_text)
+
+    def test_currency_format_count_includes_dollars_and_commas(self) -> None:
+        df = pd.DataFrame(
+            {
+                "amount": [
+                    "$1,250.00",
+                    "2,000.00",
+                    "25.00",
+                    None,
+                ]
+            }
+        )
+
+        self.assertEqual(count_currency_values(df), 2)
 
     def test_all_sales_fixtures_complete_analysis_or_are_blocked(self) -> None:
         fixtures = sorted(SALES_DATA.glob("*.csv"))
@@ -234,7 +295,7 @@ class SalesTrendTests(unittest.TestCase):
                     }[frequency]
                     self.assertIn(expected_wording, insight_text)
                     self.assertIn(
-                        "Recorded sales totaled",
+                        "Total sales were",
                         insight_text,
                     )
 

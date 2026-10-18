@@ -74,8 +74,11 @@ file with different business data is not automatically mapped to this schema.
 - The sales trend adapts its aggregation to the valid date span: daily for
   spans up to 31 days, weekly for spans up to 180 days, and monthly for longer
   spans. Its title/caption and time-based insight use the same interval.
-  All chart axes use ordered labels that identify their date period, with
-  year-qualified labels to keep date ranges and year boundaries unambiguous.
+  All chart axes use ordered labels with familiar month names and full years.
+  Daily and weekly labels include an unpadded day; monthly labels show the
+  abbreviated month and full year. Headings, tooltips, insights, and the
+  cleaned-data preview use full month names for dates; the underlying cleaned
+  data and downloaded CSV values are not reformatted for display.
   Monthly charts show every month; longer daily and weekly charts show a
   readable subset of labels while retaining all plotted data points.
 

@@ -12,7 +12,10 @@ The suite verifies date parsing, trend interval boundaries, explicit
 chronological labels for daily, weekly, and monthly charts, and analysis
 behavior across every CSV in `data/sales/`. It checks the intentionally invalid
 fixture for the missing required `amount` column. It also checks that the
-single-category and zero-revenue cases produce sensible insights.
+single-category and zero-revenue cases produce sensible insights, and that
+dates in insights use full month names rather than numeric ISO formatting.
+It also checks that amounts with dollar signs and thousands separators are
+counted for cleaning.
 
 ## Pipeline smoke check
 
@@ -51,12 +54,13 @@ and insights. The intentionally invalid file reported the missing `amount`
 column and kept cleaning disabled. The browser check also confirmed readable,
 chronological axes and matching day/week/month insight wording.
 
-The four automated regression tests and the sample pipeline smoke check
-passed again on October 18, 2026. The browser workflow was also checked with
+The six automated regression tests and the sample pipeline smoke check passed
+in the latest verification run. The browser workflow was also checked with
 the 100-row clean fixture after the wording changes; it completed through the
-dashboard and showed a weekly trend with ordered date labels. Re-run both
-commands after changes to data cleaning, transformations, charting, or
-insight generation.
+dashboard and showed a weekly trend with readable date labels. A messy sample
+confirmed the validation message for currency-formatted amounts and correctly
+pluralized its issue counts. Re-run both commands after changes to data
+cleaning, transformations, charting, or insight generation.
 
 ## Suggested manual evaluation procedure
 

@@ -339,12 +339,12 @@ if uploaded_file is not None:
     )
 
     col2.metric(
-        "Average per transaction",
+        "Average sale",
         f"${kpis['average_sale']:.2f}"
     )
 
     col3.metric(
-        "Number of transactions",
+        "Sales records",
         kpis["transaction_count"]
     )
 
@@ -352,7 +352,7 @@ if uploaded_file is not None:
     # CATEGORY CHART
     # --------------------------------------
 
-    st.header("📊 Sales by product category")
+    st.header("📊 Sales by product category (dollars)")
 
     category_df = sales_by_category(df)
 
@@ -384,8 +384,8 @@ if uploaded_file is not None:
         }[trend_frequency]
         st.caption(
             f"Each point is the sales total for one {period_name}. "
-            "The app chooses daily, weekly, or monthly totals based on the "
-            "date range in your file."
+            "The chart groups sales by day, week, or month based on the "
+            "dates in your file."
         )
         render_sales_trend(trend_df, trend_frequency)
 

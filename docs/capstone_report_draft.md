@@ -235,15 +235,16 @@ completed the workflow. The structurally invalid fixture, which omits
 The browser check also confirmed that trend chart labels follow chronological
 order and that day-, week-, and month-based insights match the chart interval.
 
-The automated regression suite completed four tests successfully. It covers
+The automated regression suite completed six tests successfully. It covers
 all sales fixtures at the cleaning/transformation/insight level, date parsing,
 trend interval boundaries, explicit chart labels, and single-category and
 zero-revenue edge cases. The separate pipeline smoke script also completed
-successfully. Both checks passed again on October 18, 2026, and a browser
-smoke test with the clean 100-row fixture completed through the dashboard
-after the readability updates. The results are development verification, not
-a formal usability study or evidence of business impact. Record the final
-Python and package versions and rerun the checks before submission.
+successfully. Both checks passed in the latest verification run, and a
+browser smoke test with the clean 100-row fixture completed through the
+dashboard after the readability updates. The results are development
+verification, not a formal usability study or evidence of business impact.
+Record the final Python and package versions and rerun the checks before
+submission.
 
 For the final evaluation, document:
 
