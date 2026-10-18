@@ -86,7 +86,7 @@ sys.path.append(
 from backend.transformation import (
     calculate_kpis,
     sales_by_category,
-    sales_by_date,
+    sales_by_time_period,
     category_distribution
 )
 
@@ -95,6 +95,7 @@ from backend.transformation import (
 # ==========================================
 
 from backend.insights import generate_insights
+from frontend.charts import render_sales_trend
 
 # ==========================================
 # VALIDATION FUNCTIONS
@@ -326,24 +327,24 @@ if uploaded_file is not None:
     # KPI SECTION
     # --------------------------------------
 
-    st.header("📈 Key Performance Indicators")
+    st.header("📈 Sales summary")
 
     kpis = calculate_kpis(df)
 
     col1, col2, col3 = st.columns(3)
 
     col1.metric(
-        "Total Sales",
+        "Total sales",
         f"${kpis['total_sales']:.2f}"
     )
 
     col2.metric(
-        "Average Sale",
+        "Average per transaction",
         f"${kpis['average_sale']:.2f}"
     )
 
     col3.metric(
-        "Transactions",
+        "Number of transactions",
         kpis["transaction_count"]
     )
 
@@ -351,7 +352,7 @@ if uploaded_file is not None:
     # CATEGORY CHART
     # --------------------------------------
 
-    st.header("📊 Sales by Category")
+    st.header("📊 Sales by product category")
 
     category_df = sales_by_category(df)
 
@@ -365,27 +366,52 @@ if uploaded_file is not None:
 
     st.header("📅 Sales Over Time")
 
-    daily_df = sales_by_date(df)
+    trend_df, trend_frequency = sales_by_time_period(df)
 
-    st.line_chart(
-        daily_df.set_index("date")
-    )
+    if trend_df.empty:
+        st.info("No valid dates are available for a sales trend.")
+    else:
+        frequency_labels = {
+            "day": "Daily",
+            "week": "Weekly",
+            "month": "Monthly",
+        }
+        st.subheader(f"{frequency_labels[trend_frequency]} Sales Trend")
+        period_name = {
+            "day": "day",
+            "week": "week",
+            "month": "month",
+        }[trend_frequency]
+        st.caption(
+            f"Each point is the sales total for one {period_name}. "
+            "The app chooses daily, weekly, or monthly totals based on the "
+            "date range in your file."
+        )
+        render_sales_trend(trend_df, trend_frequency)
 
     # --------------------------------------
     # REVENUE DISTRIBUTION
     # --------------------------------------
 
-    st.header("🥧 Revenue Distribution")
+    st.header("🥧 Share of total sales by category")
 
     distribution_df = category_distribution(df)
 
-    st.dataframe(distribution_df)
+    st.dataframe(
+        distribution_df.rename(
+            columns={
+                "category": "Category",
+                "amount": "Sales total ($)",
+                "percentage": "Share of total (%)",
+            }
+        )
+    )
 
     # --------------------------------------
     # BUSINESS INSIGHTS
     # --------------------------------------
 
-    st.header("💡 Business Insights")
+    st.header("💡 Your sales insights")
 
     insights = generate_insights(df)
 
@@ -396,7 +422,7 @@ if uploaded_file is not None:
     # DOWNLOAD RESULTS
     # ======================================
 
-    st.header("📥 Download Results")
+    st.header("📥 Download cleaned data and insights")
 
     csv_data = df.to_csv(index=False)
 

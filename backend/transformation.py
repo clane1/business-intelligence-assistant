@@ -95,6 +95,57 @@ def sales_by_date(df: pd.DataFrame) -> pd.DataFrame:
     return daily_totals
 
 
+def sales_by_time_period(
+    df: pd.DataFrame
+) -> tuple[pd.DataFrame, str]:
+    """
+    Aggregate sales at a granularity suited to the date range.
+
+    Returns the period start and total amount, with a frequency of "day",
+    "week", or "month".
+    """
+    dated_sales = df.loc[:, ["date", "amount"]].copy()
+    dated_sales["date"] = pd.to_datetime(
+        dated_sales["date"],
+        errors="coerce"
+    )
+    dated_sales = dated_sales.dropna(subset=["date"])
+
+    if dated_sales.empty:
+        return pd.DataFrame(columns=["date", "amount"]), "day"
+
+    date_span_days = (
+        dated_sales["date"].max() - dated_sales["date"].min()
+    ).days
+
+    if date_span_days <= 31:
+        frequency = "day"
+        dated_sales["date"] = dated_sales["date"].dt.normalize()
+    elif date_span_days <= 180:
+        frequency = "week"
+        dated_sales["date"] = (
+            dated_sales["date"]
+            .dt.to_period("W-SUN")
+            .dt.start_time
+        )
+    else:
+        frequency = "month"
+        dated_sales["date"] = (
+            dated_sales["date"]
+            .dt.to_period("M")
+            .dt.start_time
+        )
+
+    period_totals = (
+        dated_sales.groupby("date", as_index=False)["amount"]
+        .sum()
+        .sort_values("date")
+        .reset_index(drop=True)
+    )
+
+    return period_totals, frequency
+
+
 def category_distribution(df: pd.DataFrame) -> pd.DataFrame:
     """
     Calculates the percentage contribution

@@ -15,7 +15,7 @@ import pandas as pd
 from backend.transformation import (
     calculate_kpis,
     sales_by_category,
-    sales_by_date,
+    sales_by_time_period,
     category_distribution
 )
 
@@ -51,50 +51,82 @@ def generate_insights(df: pd.DataFrame) -> list:
     category_totals = sales_by_category(df)
 
     if category_totals["amount"].ne(0).any():
-        top_category = category_totals.iloc[0]
-        insights.append(
-            f"{top_category['category']} generated the highest revenue "
-            f"(${top_category['amount']:.2f})."
-        )
+        if len(category_totals) == 1:
+            category = category_totals.iloc[0]["category"]
+            insights.append(
+                f"All recorded sales came from {category}; "
+                "no category comparison is available."
+            )
+        else:
+            top_category = category_totals.iloc[0]
+            insights.append(
+                f"Sales were highest for {top_category['category']} "
+                f"(${top_category['amount']:.2f})."
+            )
 
-        bottom_category = category_totals.iloc[-1]
-        insights.append(
-            f"{bottom_category['category']} generated the lowest revenue "
-            f"(${bottom_category['amount']:.2f})."
-        )
+            bottom_category = category_totals.iloc[-1]
+            insights.append(
+                f"Sales were lowest for {bottom_category['category']} "
+                f"(${bottom_category['amount']:.2f})."
+            )
     else:
-        insights.append("No non-zero sales were available for category insights.")
+        insights.append("There are no sales amounts to compare by category.")
 
     # -----------------------------
-    # DAILY SALES ANALYSIS
+    # DATE-BASED SALES ANALYSIS
     # -----------------------------
 
-    daily_totals = sales_by_date(df)
+    period_totals, frequency = sales_by_time_period(df)
 
-    if daily_totals.empty:
-        insights.append("No valid dates were available for daily sales insights.")
-    elif not daily_totals["amount"].ne(0).any():
-        insights.append("No non-zero sales were available for daily insights.")
+    if period_totals.empty:
+        insights.append(
+            "The app could not read any dates, so a sales trend is unavailable."
+        )
+    elif not period_totals["amount"].ne(0).any():
+        insights.append("There are no sales amounts to compare over time.")
     else:
-        best_day = daily_totals.loc[
-            daily_totals["amount"].idxmax()
+        best_period = period_totals.loc[
+            period_totals["amount"].idxmax()
         ]
-        best_day_date = best_day["date"].strftime("%Y-%m-%d")
-
-        insights.append(
-            f"{best_day_date} recorded the highest daily sales "
-            f"(${best_day['amount']:.2f})."
-        )
-
-        worst_day = daily_totals.loc[
-            daily_totals["amount"].idxmin()
+        worst_period = period_totals.loc[
+            period_totals["amount"].idxmin()
         ]
-        worst_day_date = worst_day["date"].strftime("%Y-%m-%d")
+        if frequency == "month":
+            best_period_label = best_period["date"].strftime("%B %Y")
+            worst_period_label = worst_period["date"].strftime("%B %Y")
+            best_period_insight = (
+                f"Sales were highest in {best_period_label} "
+                f"(${best_period['amount']:.2f})."
+            )
+            worst_period_insight = (
+                f"Sales were lowest in {worst_period_label} "
+                f"(${worst_period['amount']:.2f})."
+            )
+        elif frequency == "week":
+            best_period_label = best_period["date"].strftime("%Y-%m-%d")
+            worst_period_label = worst_period["date"].strftime("%Y-%m-%d")
+            best_period_insight = (
+                f"The week starting {best_period_label} had the most sales "
+                f"(${best_period['amount']:.2f})."
+            )
+            worst_period_insight = (
+                f"The week starting {worst_period_label} had the least sales "
+                f"(${worst_period['amount']:.2f})."
+            )
+        else:
+            best_period_label = best_period["date"].strftime("%Y-%m-%d")
+            worst_period_label = worst_period["date"].strftime("%Y-%m-%d")
+            best_period_insight = (
+                f"Sales were highest on {best_period_label} "
+                f"(${best_period['amount']:.2f})."
+            )
+            worst_period_insight = (
+                f"Sales were lowest on {worst_period_label} "
+                f"(${worst_period['amount']:.2f})."
+            )
 
-        insights.append(
-            f"{worst_day_date} recorded the lowest daily sales "
-            f"(${worst_day['amount']:.2f})."
-        )
+        insights.append(best_period_insight)
+        insights.append(worst_period_insight)
 
     # -----------------------------
     # CATEGORY DISTRIBUTION
@@ -104,7 +136,7 @@ def generate_insights(df: pd.DataFrame) -> list:
 
     if total_sales == 0:
         insights.append(
-            "Category revenue shares are unavailable because total sales are zero."
+            "Category shares are unavailable because total sales are zero."
         )
     else:
         top_distribution = distribution.loc[
@@ -113,7 +145,7 @@ def generate_insights(df: pd.DataFrame) -> list:
 
         insights.append(
             f"{top_distribution['category']} accounts for "
-            f"{top_distribution['percentage']:.2f}% of total revenue."
+            f"{top_distribution['percentage']:.2f}% of total sales."
         )
 
     # -----------------------------
@@ -121,12 +153,12 @@ def generate_insights(df: pd.DataFrame) -> list:
     # -----------------------------
 
     insights.append(
-        f"Total sales were ${total_sales:.2f} across "
+        f"Recorded sales totaled ${total_sales:.2f} across "
         f"{kpis['transaction_count']} transactions."
     )
 
     insights.append(
-        f"The average transaction value was "
+        f"The average amount per transaction was "
         f"${average_sale:.2f}."
     )
 

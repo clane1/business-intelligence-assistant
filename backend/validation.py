@@ -68,7 +68,7 @@ def count_invalid_dates(df: pd.DataFrame) -> int:
         .str.strip()
         .str.replace(
             r"^(\d{2})-(\d{2})-(\d{4})$",
-            r"\3-\1-\2",
+            r"\3-\2-\1",
             regex=True
         )
     )
