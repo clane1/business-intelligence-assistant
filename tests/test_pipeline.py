@@ -1,7 +1,7 @@
 """
 test_pipeline.py
 
-Tests the entire Business Intelligence pipeline.
+Runs a print-based smoke check for the Business Intelligence pipeline.
 
 Pipeline:
 
@@ -11,8 +11,9 @@ Transformation
  ↓
 Insights
 
-This file is used for development testing
-before integrating Streamlit.
+This script is intended to be run from the repository root with
+``python tests/test_pipeline.py``. The automated assertions for fixture and
+edge-case behavior live in ``tests/test_sales_trend.py``.
 """
 
 import sys

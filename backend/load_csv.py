@@ -1,39 +1,55 @@
-"""Small utility for loading a CSV file into a Pandas DataFrame."""
+"""Low-level CSV parsing shared by the sales loader and local scripts.
 
-import pandas as pd   # Import pandas so we can read CSV files
+This module only reads tabular CSV content. It does not validate or rename
+sales columns; sales-specific header rules belong in :mod:`backend.csv_loader`.
+Read and parsing errors from pandas are intentionally allowed to propagate so
+callers can report or handle the actual failure.
+"""
 
-def load_csv(path: str) -> pd.DataFrame:
+from pathlib import Path
+from typing import IO
+
+import pandas as pd
+
+
+CsvSource = str | Path | IO[bytes] | IO[str]
+
+
+def load_csv(
+    source: CsvSource,
+    *,
+    delimiter: str = ",",
+    headers_included: bool = True,
+) -> pd.DataFrame:
+    """Read CSV content into a DataFrame without applying a domain schema.
+
+    Args:
+        source: Filesystem path or readable text/binary file-like object.
+        delimiter: Character separating fields in each CSV record.
+        headers_included: Whether pandas should treat the first row as column
+            names. If false, pandas assigns integer column labels.
+
+    Returns:
+        The parsed CSV as a pandas DataFrame.
+
+    Raises:
+        OSError: If a filesystem source cannot be read.
+        pandas.errors.ParserError: If pandas cannot parse the CSV structure.
     """
-    Loads a CSV file into a Pandas DataFrame.
-    The 'path' argument must point to a real CSV file.
-    """
-    try:
-        # Try to read the CSV file at the given path
-        df = pd.read_csv(path)
+    return pd.read_csv(
+        source,
+        sep=delimiter,
+        header=0 if headers_included else None,
+    )
 
-        # If successful, print a confirmation message
-        print("CSV loaded successfully.")
 
-        # Return the DataFrame so the caller can use it
-        return df
-
-    except Exception as e:
-        # If something goes wrong (bad path, missing file, etc.)
-        print(f"Error loading CSV: {e}")
-        return None
-
-# This block only runs when THIS file is executed directly.
-# It does NOT run when the file is imported by another module.
 if __name__ == "__main__":
-
-        # Print something so we know the script is actually running
-        print("Script started")
-
-        # Try to load the CSV file from the data folder
-        df = load_csv("data/sales/sales_sample_10.csv")
-
-        # If df is not None, print the first few rows
-        if df is not None:
-            print(df.head())
-        else:
-            print("No data to display.")
+    sample_path = (
+        Path(__file__).resolve().parents[1]
+        / "data"
+        / "sales"
+        / "sales_sample_10.csv"
+    )
+    sample_df = load_csv(sample_path)
+    print("CSV loaded successfully.")
+    print(sample_df.head())

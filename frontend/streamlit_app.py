@@ -15,6 +15,10 @@ This application allows users to:
 6. Generate business insights
 
 Author: Carson Lane
+
+This is the original, single-page prototype. The guided four-step workflow is
+implemented in ``streamlit_app_v2.py``. Both frontends use the shared
+sales-aware CSV loader.
 """
 
 # ==========================================
@@ -23,7 +27,6 @@ Author: Carson Lane
 
 import os
 import sys
-import pandas as pd
 import streamlit as st
 
 # ==========================================
@@ -88,6 +91,11 @@ from backend.transformation import (
     sales_by_category,
     sales_by_time_period,
     category_distribution
+)
+
+from backend.csv_loader import (
+    SalesCsvFormatError,
+    load_sales_csv,
 )
 
 # ==========================================
@@ -176,6 +184,12 @@ headers_included = st.checkbox(
     value=True
 )
 
+if not headers_included:
+    st.info(
+        "Without a header row, columns must be in this order: "
+        "date, amount, category, item."
+    )
+
 delimiter = st.selectbox(
     "Delimiter",
     [
@@ -229,14 +243,15 @@ if uploaded_file is not None:
     "Semicolon": ";"
     }
 
-    # Pandas expects header=None when the uploaded file has no header row.
-    header_value = 0 if headers_included else None
-
-    df = pd.read_csv(
-        uploaded_file,
-        sep=delimiter_map[delimiter],
-        header=header_value
-    )
+    try:
+        df = load_sales_csv(
+            uploaded_file,
+            delimiter=delimiter_map[delimiter],
+            headers_included=headers_included,
+        )
+    except SalesCsvFormatError as error:
+        st.error(str(error))
+        st.stop()
 
     st.session_state.upload_complete = True
 
@@ -265,6 +280,15 @@ if uploaded_file is not None:
     if missing_columns:
         st.error(
             f"Missing required columns: {missing_columns}"
+        )
+        if len(df.columns) == 1:
+            st.warning(
+                "Only one column was read. Check that the selected delimiter "
+                "matches the separator used in your file."
+            )
+        st.info(
+            "If these columns are present in your file, check that the header "
+            "option and selected delimiter match its format."
         )
         st.stop()
 

@@ -4,14 +4,17 @@ import pandas as pd
 
 
 def calculate_kpis(df: pd.DataFrame) -> dict:
-    """
-    Calculates key performance indicators (KPIs)
-    from the cleaned dataset.
+    """Calculate total sales, mean sale amount, and number of records.
+
+    Non-numeric amounts are treated as zero for the total and average. The
+    record count includes every row in the provided DataFrame.
+
+    Args:
+        df: Cleaned sales data with an ``amount`` column.
 
     Returns:
-        total_sales
-        average_sale
-        transaction_count
+        A dictionary with ``total_sales``, ``average_sale``, and
+        ``transaction_count`` keys.
     """
 
     # Force amount column to numeric
@@ -42,13 +45,13 @@ def calculate_kpis(df: pd.DataFrame) -> dict:
     return kpis
 
 def sales_by_category(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Groups sales by category.
+    """Sum amount by category, ordered from highest to lowest sales.
 
-    This is useful for:
-    - bar charts
-    - category analysis
-    - identifying top-performing categories
+    Args:
+        df: Cleaned sales data with ``category`` and numeric ``amount`` fields.
+
+    Returns:
+        A DataFrame with one row per category and its summed amount.
     """
 
     category_totals = (
@@ -69,13 +72,13 @@ def sales_by_category(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def sales_by_date(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Calculates total sales for each date.
+    """Sum sales by exact date and return the results chronologically.
 
-    This will later be used for:
-    - line charts
-    - trend analysis
-    - forecasting
+    Args:
+        df: Sales data with ``date`` and numeric ``amount`` fields.
+
+    Returns:
+        A DataFrame with one row per date and its summed amount.
     """
 
     daily_totals = (
@@ -99,10 +102,20 @@ def sales_by_time_period(
     df: pd.DataFrame
 ) -> tuple[pd.DataFrame, str]:
     """
-    Aggregate sales at a granularity suited to the date range.
+    Aggregate valid dated sales at a granularity suited to the date span.
 
-    Returns the period start and total amount, with a frequency of "day",
-    "week", or "month".
+    Spans of at most 31 days use daily totals, spans up to 180 days use
+    Monday-starting weekly totals, and longer spans use monthly totals.
+    Records with unreadable dates are excluded from this date-based result.
+
+    Args:
+        df: Sales data containing ``date`` and numeric ``amount`` columns.
+
+    Returns:
+        A pair containing a chronologically ordered ``date``/``amount``
+        DataFrame and its frequency (``day``, ``week``, or ``month``). If no
+        valid dates remain, the DataFrame is empty and the frequency is
+        ``day``.
     """
     dated_sales = df.loc[:, ["date", "amount"]].copy()
     dated_sales["date"] = pd.to_datetime(
@@ -147,13 +160,16 @@ def sales_by_time_period(
 
 
 def category_distribution(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Calculates the percentage contribution
-    of each category to total revenue.
+    """Calculate each category's sales total and share of total sales.
 
-    Useful for:
-    - pie charts
-    - dashboard summaries
+    When total sales are zero, every percentage is zero to avoid division by
+    zero and misleading undefined shares.
+
+    Args:
+        df: Cleaned sales data with ``category`` and numeric ``amount`` fields.
+
+    Returns:
+        A DataFrame with each category's amount and percentage of sales.
     """
 
     # Total revenue across the whole dataset

@@ -10,12 +10,15 @@ From the repository root, run the automated test suite:
 
 The suite verifies date parsing, trend interval boundaries, explicit
 chronological labels for daily, weekly, and monthly charts, and analysis
-behavior across every CSV in `data/sales/`. It checks the intentionally invalid
-fixture for the missing required `amount` column. It also checks that the
-single-category and zero-revenue cases produce sensible insights, and that
-dates in insights use full month names rather than numeric ISO formatting.
-It also checks that amounts with dollar signs and thousands separators are
-counted for cleaning.
+behavior across every standard CSV in `data/sales/`. It tests headerless
+loading with comma- and semicolon-delimited fixtures, including a messy file,
+and checks that a headerless file with the wrong column count is rejected. It
+also checks the generic CSV parser, tab delimiters with and without headers,
+mismatched header settings, and the intentionally invalid headered fixture
+for the missing required `amount` column. It checks that the single-category
+and zero-revenue cases produce sensible insights, that dates in insights use
+full month names, and that amounts with dollar signs and thousands separators
+are counted for cleaning.
 
 ## Pipeline smoke check
 
@@ -45,22 +48,27 @@ cases.
 | `sales_yearly_trend_365.csv` | Daily records spanning a year for date-oriented analysis. |
 | `sales_zero_revenue_12.csv` | Zero-revenue edge case for safe KPI, chart, and insight behavior. |
 | `sales_missing_amount_2.csv` | Intentionally invalid schema: required `amount` column is omitted. |
+| `sales_no_headers_clean_8.csv` | Clean eight-row sales file with no header row. |
+| `sales_no_headers_messy_6.csv` | Headerless six-row file with currency values, inconsistent category case, a missing amount, an invalid date, a negative amount, and a duplicate. |
+| `sales_no_headers_semicolon_4.csv` | Headerless four-row sales file using semicolons. |
+| `sales_no_headers_missing_column_2.csv` | Intentionally invalid headerless file with only three columns. |
 
 ## Recorded development verification
 
-On October 17, 2026, all eleven fixtures were exercised in the Streamlit
-workflow. Ten valid files completed upload, validation, cleaning, dashboard,
-and insights. The intentionally invalid file reported the missing `amount`
-column and kept cleaning disabled. The browser check also confirmed readable,
-chronological axes and matching day/week/month insight wording.
+On October 18, 2026, all thirteen automated regression tests passed. The existing
+eleven standard fixtures completed analysis or were rejected for the expected
+missing `amount` column. The three valid headerless fixtures loaded with the
+expected columns, passed cleaning, and produced KPI and trend results; the
+three-column headerless fixture was rejected with a clear column-count and
+delimiter-check message.
+The sample pipeline smoke check also passed.
 
-The six automated regression tests and the sample pipeline smoke check passed
-in the latest verification run. The browser workflow was also checked with
-the 100-row clean fixture after the wording changes; it completed through the
-dashboard and showed a weekly trend with readable date labels. A messy sample
-confirmed the validation message for currency-formatted amounts and correctly
-pluralized its issue counts. Re-run both commands after changes to data
-cleaning, transformations, charting, or insight generation.
+In the browser, the messy headerless file was uploaded with the header option
+unchecked and reached validation with six rows, four recognized columns, and
+the expected missing-value, invalid-date, duplicate, and currency counts. The
+three-column file displayed the explicit format error and did not proceed.
+Re-run both commands after changes to data loading, cleaning, transformations,
+charting, or insight generation.
 
 ## Suggested manual evaluation procedure
 
@@ -76,6 +84,18 @@ For each valid fixture:
 
 For `sales_missing_amount_2.csv`, confirm that validation identifies
 `amount` as missing and prevents progression to cleaning and analysis.
+
+For valid `sales_no_headers_*.csv` files, turn off the header-row checkbox,
+select the fixture's delimiter, and confirm the app recognizes the columns in
+the order `date`, `amount`, `category`, `item`. The clean, messy, and
+semicolon-delimited files should proceed through cleaning and analysis. The
+`sales_no_headers_missing_column_2.csv` fixture should show the four-column
+requirement and should not enable progression to validation.
+
+For files with headers, keep the header option on. In either header mode,
+select the delimiter that matches the file. A mismatch should show a
+parsing/schema message and should not allow cleaning with incorrectly named
+columns.
 
 For a final project evaluation, record the Python and package versions, test
 date, observed outcomes, and any user-study results. Fixture tests check

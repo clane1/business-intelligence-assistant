@@ -4,8 +4,10 @@ A guided Streamlit app for checking a sales spreadsheet, fixing common data
 issues, and viewing sales totals, charts, and plain-language highlights.
 
 > **Current scope:** Sales Data is the only supported dataset type. CSV files
-> must include `date`, `amount`, `category`, and `item` columns. This prototype
-> processes data in memory and does not persist uploads to a database.
+> need `date`, `amount`, `category`, and `item` columns. For files without a
+> header row, select the no-header option and provide those four columns in
+> that exact order. This prototype processes data in memory and does not
+> persist uploads to a database.
 
 ## Quick start (Windows)
 
@@ -38,6 +40,17 @@ Open the local URL printed by Streamlit in a browser. To stop the server, press
 3. Run cleaning when the required columns are present; review the cleaning
    summary and cleaned-data preview.
 4. Explore the dashboard and generated insights.
+
+When the first row does not contain column names, uncheck **The first row
+contains column names**. Headerless files must contain exactly four columns in
+this order: `date`, `amount`, `category`, `item`. The selected delimiter still
+applies. The app reports a clear error if a headerless file has a different
+number of columns.
+
+CSV parsing is handled by a generic file reader and a sales-specific wrapper:
+the generic reader parses the chosen delimiter/header mode, while the sales
+wrapper checks the required sales column order and provides upload-specific
+format errors.
 
 The app can clean amounts that contain dollar signs or commas, fill supported
 empty cells, remove repeated rows, and make category names consistent. Use

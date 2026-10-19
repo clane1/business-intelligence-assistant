@@ -27,7 +27,10 @@ flowchart TD
 | Component | Responsibility |
 | --- | --- |
 | `frontend/streamlit_app_v2.py` | Streamlit layout, staged navigation, upload, session state, validation/cleaning orchestration, dashboard, and insight display. |
+| `frontend/streamlit_app.py` | Original single-page Streamlit prototype retained as an alternate entry point. |
 | `frontend/charts.py` | Altair charts with explicit chronological labels and date tooltips, rendered in Streamlit. |
+| `backend/load_csv.py` | Low-level CSV parsing for a path or file-like input. Selects delimiter and header behavior; leaves sales-schema decisions to its caller. |
+| `backend/csv_loader.py` | Sales-specific layer over `load_csv.py`; assigns required names for headerless sales files and rejects incompatible headerless layouts. |
 | `backend/validation.py` | Required-column checks; missing-value, amount-format, invalid-date, duplicate, and currency-value checks. |
 | `backend/cleaning.py` | Missing-value defaults, numeric amount conversion, date parsing, duplicate removal, and category normalization. |
 | `backend/transformation.py` | KPI calculation, sales grouped by category/date, and category sales distribution. |
@@ -83,3 +86,34 @@ file with different business data is not automatically mapped to this schema.
   readable subset of labels while retaining all plotted data points.
 
 These are current implementation rules, not configurable user policies.
+
+## CSV header handling
+
+The sales workflow accepts CSV files with or without a header row. With
+headers enabled, the first row is interpreted as column names. When headers
+are disabled, the loader assigns `date`, `amount`, `category`, and `item` in
+that required order. Headerless files must have exactly four columns; files
+with another column count are rejected with a user-facing error before they
+reach validation; the message also prompts users to check the delimiter. The
+selected comma, tab, or semicolon delimiter applies in either mode. If the
+header option is off but a header row is detected, the loader asks the user to
+turn it on. If a headerless file is mistakenly read with headers enabled,
+validation reports missing columns and suggests checking the header option
+and delimiter. A headered file read as one column gets a specific delimiter
+warning.
+
+The two loader modules have deliberately separate responsibilities:
+`backend/load_csv.py` performs the generic pandas read from a path or uploaded
+file-like object and lets read/parse errors propagate. `backend/csv_loader.py`
+calls that helper, then applies the sales-specific four-column contract and
+raises `SalesCsvFormatError` for a user-correctable header/layout mismatch.
+The Streamlit frontends call the sales-specific layer; the generic loader is
+not a second competing upload workflow.
+
+## Python source documentation
+
+Python modules start with a module docstring describing their purpose.
+Functions and test methods document their behavior, important inputs/outputs,
+and non-obvious constraints. Inline comments are reserved for reasoning that
+is not clear from the code itself; they are not repeated explanations of
+straightforward statements.

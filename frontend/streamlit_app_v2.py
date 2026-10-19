@@ -19,6 +19,10 @@ Workflow:
 
 Users cannot skip ahead until previous
 steps have been completed.
+
+CSV parsing is delegated to ``backend.load_csv`` through
+``backend.csv_loader``; this page handles the user-facing upload, workflow,
+validation, cleaning, dashboard, and insight presentation.
 """
 
 # ==========================================
@@ -54,6 +58,11 @@ from backend.transformation import (
     category_distribution
 )
 
+from backend.csv_loader import (
+    SalesCsvFormatError,
+    load_sales_csv,
+)
+
 from backend.insights import (
     generate_insights
 )
@@ -79,6 +88,11 @@ from frontend.charts import format_display_date, render_sales_trend
 
 
 def _format_count(count: int | str, item: str) -> str:
+    """Format a count with singular/plural wording or pass text through.
+
+    Text values are used for unavailable measurements; numeric values receive
+    the given item label with a plural suffix when needed.
+    """
     if isinstance(count, str):
         return count
     suffix = "" if count == 1 else "s"
@@ -393,6 +407,12 @@ if st.session_state.current_step == 1:
         value=True
     )
 
+    if not headers_included:
+        st.info(
+            "Without a header row, columns must be in this order: "
+            "date, amount, category, item."
+        )
+
     delimiter = st.selectbox(
         "What separates the columns?",
         [
@@ -492,41 +512,40 @@ if st.session_state.current_step == 1:
             "Semicolon": ";"
         }
 
-        header_value = (
-            0 if headers_included
-            else None
-        )
+        try:
+            df = load_sales_csv(
+                uploaded_file,
+                delimiter=delimiter_map[delimiter],
+                headers_included=headers_included,
+            )
+        except SalesCsvFormatError as error:
+            st.error(str(error))
+            st.stop()
+        else:
+            # Store uploaded dataset so that it can
+            # be accessed by validation, cleaning,
+            # dashboard, and insight-generation
+            # modules later in the workflow.
 
-        df = pd.read_csv(
-            uploaded_file,
-            sep=delimiter_map[delimiter],
-            header=header_value
-        )
-        
-        # Store uploaded dataset so that it can
-        # be accessed by validation, cleaning,
-        # dashboard, and insight-generation
-        # modules later in the workflow.
+            st.session_state.raw_df = df
+            st.session_state.cleaning_summary = None
 
-        st.session_state.raw_df = df
-        st.session_state.cleaning_summary = None
+            st.success(
+                "Dataset uploaded successfully."
+            )
 
-        st.success(
-            "Dataset uploaded successfully."
-        )
-        
-        # Once the dataset has been uploaded
-        # successfully, the user may proceed
-        # to the validation stage.
-        #
-        # Updating current_step causes the
-        # application to render Step 2.
+            # Once the dataset has been uploaded
+            # successfully, the user may proceed
+            # to the validation stage.
+            #
+            # Updating current_step causes the
+            # application to render Step 2.
 
-        if st.button(
-            "Continue to data checks"
-        ):
-            st.session_state.current_step = 2
-            st.rerun()
+            if st.button(
+                "Continue to data checks"
+            ):
+                st.session_state.current_step = 2
+                st.rerun()
             
 # ==========================================
 # STEP 2 - VALIDATION
@@ -599,6 +618,15 @@ if st.session_state.current_step == 2:
                 "Your file is missing these required columns: "
                 f"{', '.join(missing_columns)}."
             )
+        if len(df.columns) == 1:
+            st.warning(
+                "Only one column was read. Check that the selected delimiter "
+                "matches the separator used in your file."
+            )
+        st.info(
+            "If these columns are present in your file, check that the header "
+            "option and selected delimiter match its format."
+        )
     else:
         st.success(
             "Your file has all the columns needed for sales analysis."

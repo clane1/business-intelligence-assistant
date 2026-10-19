@@ -21,16 +21,18 @@ from backend.transformation import (
 
 
 def generate_insights(df: pd.DataFrame) -> list:
-    """
-    Generates business insights from a cleaned dataset.
+    """Generate plain-language observations from cleaned sales data.
 
-    Parameters:
-        df (DataFrame):
-            Cleaned sales dataset.
+    The output covers category leaders, the highest and lowest dated sales
+    periods, category share, total sales, and average sale. Where comparisons
+    are unavailable (for example, no readable dates or zero sales), the
+    returned list explains that instead of inventing a comparison.
+
+    Args:
+        df: A cleaned DataFrame containing the sales columns.
 
     Returns:
-        list:
-            A list of business insight strings.
+        An ordered list of human-readable insight strings.
     """
 
     insights = []

@@ -1,5 +1,11 @@
-"""Regression tests for adaptive sales trends and all sales CSV fixtures."""
+"""Regression coverage for the sales workflow's loading and analysis rules.
 
+The tests exercise CSV header/delimiter handling, data cleaning, adaptive
+trend intervals and labels, generated insight wording, and every standard
+sales fixture.
+"""
+
+from io import StringIO
 import unittest
 from pathlib import Path
 
@@ -12,6 +18,11 @@ from backend.cleaning import (
     clean_types,
     normalize_categories,
 )
+from backend.csv_loader import (
+    SalesCsvFormatError,
+    load_sales_csv,
+)
+from backend.load_csv import load_csv
 from backend.insights import generate_insights
 from backend.transformation import (
     calculate_kpis,
@@ -31,10 +42,24 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SALES_DATA = PROJECT_ROOT / "data" / "sales"
 REQUIRED_COLUMNS = ["date", "amount", "category", "item"]
 INVALID_FIXTURE = "sales_missing_amount_2.csv"
+HEADERLESS_FIXTURES = {
+    "sales_no_headers_clean_8.csv": (",", 8),
+    "sales_no_headers_messy_6.csv": (",", 6),
+    "sales_no_headers_semicolon_4.csv": (";", 4),
+}
+MALFORMED_HEADERLESS_FIXTURE = "sales_no_headers_missing_column_2.csv"
 
 
 def clean_sales_data(df: pd.DataFrame) -> pd.DataFrame:
-    """Apply the same transformations as the Streamlit cleaning workflow."""
+    """Apply the ordered transformations used by the guided app.
+
+    Args:
+        df: Raw sales DataFrame to clean. The input is copied before mutation.
+
+    Returns:
+        Cleaned sales data with normalized dates, amounts, duplicates, and
+        category labels.
+    """
     df = clean_missing(df.copy())
     df = clean_types(df)
     df = clean_dates(df, ["date"])
@@ -43,7 +68,146 @@ def clean_sales_data(df: pd.DataFrame) -> pd.DataFrame:
 
 
 class SalesTrendTests(unittest.TestCase):
+    """Verify sales CSV loading, cleaning, aggregation, and insight behavior."""
+
+    def test_loads_headerless_fixtures_through_sales_pipeline(self) -> None:
+        """Check valid headerless fixtures load and support analysis."""
+        for fixture_name, (delimiter, expected_rows) in HEADERLESS_FIXTURES.items():
+            fixture = SALES_DATA / fixture_name
+            with self.subTest(fixture=fixture_name), fixture.open("rb") as source:
+                raw_df = load_sales_csv(
+                    source,
+                    delimiter=delimiter,
+                    headers_included=False,
+                )
+
+                self.assertEqual(list(raw_df.columns), REQUIRED_COLUMNS)
+                self.assertEqual(len(raw_df), expected_rows)
+                self.assertEqual(validate_columns(raw_df, REQUIRED_COLUMNS), [])
+
+                df = clean_sales_data(raw_df)
+                self.assertFalse(df.empty)
+                self.assertFalse(df.duplicated().any())
+                self.assertTrue(df["amount"].notna().all())
+
+                kpis = calculate_kpis(df)
+                trend, _ = sales_by_time_period(df)
+                self.assertGreater(kpis["transaction_count"], 0)
+                self.assertFalse(trend.empty)
+
+        with (SALES_DATA / "sales_no_headers_messy_6.csv").open("rb") as source:
+            messy_df = load_sales_csv(
+                source,
+                delimiter=",",
+                headers_included=False,
+            )
+        cleaned_messy_df = clean_sales_data(messy_df)
+        self.assertEqual(len(cleaned_messy_df), 5)
+        self.assertEqual(count_invalid_dates(cleaned_messy_df), 1)
+        self.assertIn("Electronics", cleaned_messy_df["category"].tolist())
+
+    def test_headerless_fixture_with_wrong_column_count_is_rejected(self) -> None:
+        """Reject headerless input that does not have four sales fields."""
+        fixture = SALES_DATA / MALFORMED_HEADERLESS_FIXTURE
+
+        with fixture.open("rb") as source:
+            with self.assertRaisesRegex(
+                SalesCsvFormatError,
+                "Check that the selected delimiter matches",
+            ):
+                load_sales_csv(
+                    source,
+                    delimiter=",",
+                    headers_included=False,
+                )
+
+    def test_headered_content_is_rejected_when_header_option_is_off(self) -> None:
+        """Detect a standard sales header when the user says it is absent."""
+        with self.assertRaisesRegex(
+            SalesCsvFormatError,
+            "appears to contain a header row",
+        ):
+            load_sales_csv(
+                StringIO(
+                    "date,amount,category,item\n"
+                    "2024-07-01,14.50,Food,Bread\n"
+                ),
+                delimiter=",",
+                headers_included=False,
+            )
+
+    def test_headerless_content_does_not_create_required_column_names(self) -> None:
+        """Confirm the headered mode does not silently repair absent headers."""
+        df = load_sales_csv(
+            StringIO("2024-07-01,14.50,Food,Bread\n"),
+            delimiter=",",
+            headers_included=True,
+        )
+
+        self.assertEqual(
+            validate_columns(df, REQUIRED_COLUMNS),
+            REQUIRED_COLUMNS,
+        )
+
+    def test_loader_preserves_headered_csv_columns(self) -> None:
+        """Preserve the four named columns and records of a normal CSV."""
+        fixture = SALES_DATA / "sales_sample_10.csv"
+
+        with fixture.open("rb") as source:
+            df = load_sales_csv(
+                source,
+                delimiter=",",
+                headers_included=True,
+            )
+
+        self.assertEqual(list(df.columns), REQUIRED_COLUMNS)
+        self.assertEqual(len(df), 10)
+
+    def test_generic_csv_loader_parses_without_sales_schema_rules(self) -> None:
+        """Verify generic path and stream reads do not apply sales rules."""
+        path_df = load_csv(SALES_DATA / "sales_sample_10.csv")
+        df = load_csv(
+            StringIO("2024-07-01,14.50,Food,Bread\n"),
+            delimiter=",",
+            headers_included=False,
+        )
+
+        self.assertEqual(list(path_df.columns), REQUIRED_COLUMNS)
+        self.assertEqual(len(path_df), 10)
+        self.assertEqual(list(df.columns), [0, 1, 2, 3])
+        self.assertEqual(df.iloc[0].tolist(), [
+            "2024-07-01",
+            14.5,
+            "Food",
+            "Bread",
+        ])
+
+    def test_loader_handles_tab_delimiters_with_and_without_headers(self) -> None:
+        """Parse tab-delimited data in both header modes."""
+        headerless = load_sales_csv(
+            StringIO(
+                "2024-07-01\t14.50\tFood\tBread\n"
+                "2024-07-02\t21.00\tHome\tLamp\n"
+            ),
+            delimiter="\t",
+            headers_included=False,
+        )
+        headered = load_sales_csv(
+            StringIO(
+                "date\tamount\tcategory\titem\n"
+                "2024-07-01\t14.50\tFood\tBread\n"
+            ),
+            delimiter="\t",
+            headers_included=True,
+        )
+
+        self.assertEqual(list(headerless.columns), REQUIRED_COLUMNS)
+        self.assertEqual(headerless.loc[0, "item"], "Bread")
+        self.assertEqual(list(headered.columns), REQUIRED_COLUMNS)
+        self.assertEqual(headered.loc[0, "amount"], 14.5)
+
     def test_day_month_year_dates_are_parsed_consistently(self) -> None:
+        """Normalize valid day-month-year dates and reject impossible dates."""
         df = pd.DataFrame(
             {
                 "date": [
@@ -69,6 +233,7 @@ class SalesTrendTests(unittest.TestCase):
         self.assertEqual(count_invalid_dates(df), 1)
 
     def test_selects_granularity_from_date_span(self) -> None:
+        """Use daily, weekly, and monthly aggregation at their boundaries."""
         cases = [
             (31, "day"),
             (32, "week"),
@@ -95,6 +260,7 @@ class SalesTrendTests(unittest.TestCase):
     def test_trend_chart_labels_are_explicit_and_chronological(
         self,
     ) -> None:
+        """Keep chart axis labels ordered and readable across year changes."""
         cases = [
             ("day", pd.date_range("2025-12-30", periods=4, freq="D"),
              [
@@ -144,6 +310,7 @@ class SalesTrendTests(unittest.TestCase):
                 )
 
     def test_insight_dates_use_readable_month_names(self) -> None:
+        """Present insight dates as familiar month-name labels."""
         cases = [
             (
                 ["2024-01-01", "2024-01-02"],
@@ -177,6 +344,7 @@ class SalesTrendTests(unittest.TestCase):
                 self.assertNotIn("2024-", insight_text)
 
     def test_currency_format_count_includes_dollars_and_commas(self) -> None:
+        """Count amount values that the cleaning step reformats."""
         df = pd.DataFrame(
             {
                 "amount": [
@@ -191,7 +359,12 @@ class SalesTrendTests(unittest.TestCase):
         self.assertEqual(count_currency_values(df), 2)
 
     def test_all_sales_fixtures_complete_analysis_or_are_blocked(self) -> None:
-        fixtures = sorted(SALES_DATA.glob("*.csv"))
+        """Analyze every standard fixture or check its expected schema error."""
+        fixtures = sorted(
+            fixture
+            for fixture in SALES_DATA.glob("*.csv")
+            if not fixture.name.startswith("sales_no_headers_")
+        )
         self.assertEqual(len(fixtures), 11)
 
         for fixture in fixtures:

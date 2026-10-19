@@ -4,16 +4,26 @@ import pandas as pd
 
 
 def validate_columns(df: pd.DataFrame, required_cols: list) -> list:
-    """
-    Checks whether all required columns exist in the DataFrame.
-    Returns a list of missing columns.
+    """Return the required column names that are absent from ``df``.
+
+    Args:
+        df: DataFrame whose schema is being checked.
+        required_cols: Column names required by the selected workflow.
+
+    Returns:
+        Missing column names in the order provided by ``required_cols``.
     """
     missing = [col for col in required_cols if col not in df.columns]
     return missing
 
 def validate_missing(df: pd.DataFrame) -> pd.Series:
-    """
-    Returns a count of missing values per column.
+    """Return the number of missing values in each DataFrame column.
+
+    Args:
+        df: DataFrame to inspect.
+
+    Returns:
+        A Series indexed by column name with missing-value counts.
     """
     return df.isnull().sum()
 
@@ -23,7 +33,15 @@ def validate_types(df: pd.DataFrame) -> dict:
 
     Currency symbols and thousands separators are allowed because the
     cleaning step removes them before analysis.
-    Returns a dictionary of problematic columns.
+
+    Args:
+        df: DataFrame to inspect. If ``amount`` is absent, no amount issue
+            can be reported.
+
+    Returns:
+        A mapping of problematic column names to user-facing issue details.
+        An empty mapping indicates that no amount issue was found or the
+        required ``amount`` column is absent.
     """
     issues = {}
     if "amount" not in df.columns:
@@ -56,8 +74,16 @@ def validate_types(df: pd.DataFrame) -> dict:
 
 
 def count_invalid_dates(df: pd.DataFrame) -> int:
-    """
-    Counts date values that the cleaning pipeline cannot parse.
+    """Count date values that the cleaning pipeline would convert to NaT.
+
+    This function expects a ``date`` column; callers should check the sales
+    schema before invoking it.
+
+    Args:
+        df: DataFrame with raw date values in a ``date`` column.
+
+    Returns:
+        Number of missing or unparseable date values.
     """
     # Normalize the supported input formats before parsing, just like clean_dates.
     date_values = (
@@ -81,15 +107,28 @@ def count_invalid_dates(df: pd.DataFrame) -> int:
 
 
 def count_duplicates(df: pd.DataFrame) -> int:
-    """
-    Counts repeated rows after the first occurrence in the dataset.
+    """Count exact duplicate rows, excluding each row's first occurrence.
+
+    Args:
+        df: DataFrame to inspect.
+
+    Returns:
+        Number of rows duplicated after their first occurrence.
     """
     return int(df.duplicated().sum())
 
 
 def count_currency_values(df: pd.DataFrame) -> int:
-    """
-    Counts amounts with dollar signs or thousands separators to clean.
+    """Count amount cells containing dollar signs or comma separators.
+
+    This function expects an ``amount`` column; callers should check the sales
+    schema before invoking it.
+
+    Args:
+        df: DataFrame with amount values in an ``amount`` column.
+
+    Returns:
+        Number of amount cells containing a dollar sign or comma.
     """
     return int(
         df["amount"]
