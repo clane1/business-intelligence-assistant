@@ -73,7 +73,9 @@ from backend.validation import (
     validate_types,
     count_invalid_dates,
     count_duplicates,
-    count_currency_values
+    count_currency_values,
+    invalid_amount_mask,
+    invalid_date_mask,
 )
 
 from backend.cleaning import (
@@ -97,6 +99,25 @@ def _format_count(count: int | str, item: str) -> str:
         return count
     suffix = "" if count == 1 else "s"
     return f"{count} {item}{suffix}"
+
+
+def _format_problem_examples(
+    df: pd.DataFrame,
+    mask: pd.Series,
+    column: str,
+) -> str:
+    """Format up to five invalid values with their CSV data-row numbers."""
+    positions = [position for position, invalid in enumerate(mask) if invalid]
+    examples = []
+    for position in positions[:5]:
+        value = df.iloc[position][column]
+        display_value = "(blank)" if pd.isna(value) else repr(value)
+        examples.append(f"row {position + 1}: {display_value}")
+
+    message = "; ".join(examples)
+    if len(positions) > 5:
+        message += f"; and {len(positions) - 5} more"
+    return message
 
 
 # ==========================================
@@ -335,9 +356,9 @@ with st.sidebar:
 # Output:
 #     raw_df
 #
-# Once a valid file is uploaded, users are
-# permitted to continue to the validation
-# stage.
+# Once a file is parsed successfully, users
+# may continue to validation. Required-column
+# and data-quality issues are reported there.
 #
 # ==========================================
 
@@ -560,9 +581,13 @@ if st.session_state.current_step == 1:
 #     - Required columns
 #     - Missing values
 #     - Data type issues
+#     - Example values and row numbers for
+#       invalid amounts and dates
 #
 # Results are presented to the user before
 # any cleaning operations are performed.
+# Missing required columns and non-numeric
+# amounts block cleaning.
 #
 # ==========================================
 if st.session_state.current_step == 2:
@@ -627,6 +652,13 @@ if st.session_state.current_step == 2:
             "If these columns are present in your file, check that the header "
             "option and selected delimiter match its format."
         )
+        st.warning(
+            "To continue, go back to Upload Data, correct the missing column "
+            "in your CSV, and upload the corrected file."
+        )
+        if st.button("Back to Upload Data"):
+            st.session_state.current_step = 1
+            st.rerun()
     else:
         st.success(
             "Your file has all the columns needed for sales analysis."
@@ -686,10 +718,16 @@ if st.session_state.current_step == 2:
     )
 
     if "date" in df.columns and invalid_dates > 0:
+        invalid_date_examples = _format_problem_examples(
+            df,
+            invalid_date_mask(df),
+            "date",
+        )
         st.warning(
             f"The app couldn't read {invalid_dates} date(s). Their sales "
             "amounts will still count in the totals, but these rows won't "
-            "appear in the sales trend or date-related insights."
+            "appear in the sales trend or date-related insights. "
+            f"Problem values: {invalid_date_examples}."
         )
 
     if missing_columns:
@@ -714,7 +752,7 @@ if st.session_state.current_step == 2:
     st.dataframe(
         # Identify missing or empty values that
         # may affect downstream processing.
-        validate_missing(df)
+        validate_missing(df).rename("Empty cells").to_frame()
     )
 
     st.subheader(
@@ -733,9 +771,16 @@ if st.session_state.current_step == 2:
     if missing_columns:
         st.info("Amount checks are unavailable until the required columns are present.")
     elif issues.get("amount") == "Non-numeric values detected":
+        invalid_amounts = invalid_amount_mask(df)
+        invalid_amount_examples = _format_problem_examples(
+            df,
+            invalid_amounts,
+            "amount",
+        )
         st.error(
-            "Some values in the amount column aren't numbers. Correct those "
-            "values before cleaning this file."
+            f"{int(invalid_amounts.sum())} value(s) in the amount column "
+            "aren't numbers and can't be cleaned automatically. Correct "
+            f"these CSV data rows before cleaning: {invalid_amount_examples}."
         )
     elif issues.get("amount") == "Currency-formatted values require cleaning":
         st.info(
@@ -760,9 +805,6 @@ if st.session_state.current_step == 2:
     # The cleaned data is stored in Session
     # State and the user advances to the
     # Dashboard stage.
-    if missing_columns:
-        st.info("Add the missing required columns before cleaning this dataset.")
-
     if st.button(
         "Clean data and view dashboard",
         disabled=bool(

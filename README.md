@@ -41,11 +41,19 @@ Open the local URL printed by Streamlit in a browser. To stop the server, press
    summary and cleaned-data preview.
 4. Explore the dashboard and generated insights.
 
+The required columns are `date`, `amount`, `category`, and `item`. If a
+headered file is missing a required column, validation names it, blocks
+cleaning, and provides a **Back to Upload Data** action so you can correct the
+CSV and upload it again. A missing column is different from an empty cell:
+empty cells are listed by column and filled with the app's documented defaults
+during cleaning.
+
 When the first row does not contain column names, uncheck **The first row
 contains column names**. Headerless files must contain exactly four columns in
 this order: `date`, `amount`, `category`, `item`. The selected delimiter still
-applies. The app reports a clear error if a headerless file has a different
-number of columns.
+applies. If a headerless file has a different number of columns, the upload
+error reports the number read and the required order. Since there are no
+column names, the app cannot identify which field is missing.
 
 CSV parsing is handled by a generic file reader and a sales-specific wrapper:
 the generic reader parses the chosen delimiter/header mode, while the sales
@@ -53,11 +61,14 @@ wrapper checks the required sales column order and provides upload-specific
 format errors.
 
 The app can clean amounts that contain dollar signs or commas, fill supported
-empty cells, remove repeated rows, and make category names consistent. Use
-year-month-day dates such as `2024-01-31` when possible. Dates the app cannot
-read are left out of the sales trend and date-related insights, but their
-amounts still count in sales totals.
-The trend chart groups sales by day, week, or month depending on the date span.
+empty cells, remove repeated rows, and make category names consistent.
+Non-numeric, non-empty amount values cannot be cleaned automatically; the
+validation screen reports example values and CSV data-row numbers so they can
+be corrected before cleaning. Unreadable dates are reported with example
+values and data-row numbers, then excluded from date-based charts and insights;
+their amounts still count in sales totals. Use year-month-day dates such as
+`2024-01-31` when possible. The trend chart groups sales by day, week, or
+month depending on the date span.
 
 If a file includes negative amounts, they reduce the sales total and may
 represent refunds or returns.
@@ -71,8 +82,8 @@ Run the automated regression tests from the repository root:
 ```
 
 The tests check date parsing, daily/weekly/monthly trend selection and labels,
-and all sales CSV fixtures. The fixture with the missing `amount` column must
-be rejected. A separate sample-data smoke check is also available:
+and all sales CSV fixtures, including schema errors and invalid amount/date
+examples. A separate sample-data smoke check is also available:
 
 ```powershell
 .\venv\Scripts\python.exe tests\test_pipeline.py

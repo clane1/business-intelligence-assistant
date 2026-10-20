@@ -29,7 +29,7 @@ def validate_missing(df: pd.DataFrame) -> pd.Series:
 
 def validate_types(df: pd.DataFrame) -> dict:
     """
-    Checks whether sale amounts can be converted to numbers.
+    Check whether non-empty sale amounts can be converted to numbers.
 
     Currency symbols and thousands separators are allowed because the
     cleaning step removes them before analysis.
@@ -47,6 +47,20 @@ def validate_types(df: pd.DataFrame) -> dict:
     if "amount" not in df.columns:
         return issues
 
+    if invalid_amount_mask(df).any():
+        issues["amount"] = "Non-numeric values detected"
+    elif count_currency_values(df):
+        issues["amount"] = "Currency-formatted values require cleaning"
+
+    return issues
+
+
+def invalid_amount_mask(df: pd.DataFrame) -> pd.Series:
+    """Return a mask for non-empty amount values that cannot be parsed.
+
+    Currency symbols and thousands separators supported by cleaning do not
+    count as invalid. The DataFrame must contain an ``amount`` column.
+    """
     raw_amounts = df["amount"]
     amount_text = (
         raw_amounts
@@ -55,22 +69,36 @@ def validate_types(df: pd.DataFrame) -> dict:
         .str.replace(",", "", regex=False)
         .str.strip()
     )
-    numeric_amounts = pd.to_numeric(
-        amount_text,
-        errors="coerce"
-    )
+    numeric_amounts = pd.to_numeric(amount_text, errors="coerce")
 
-    invalid_amounts = (
+    return (
         raw_amounts.notna()
         & amount_text.ne("")
         & numeric_amounts.isna()
     )
-    if invalid_amounts.any():
-        issues["amount"] = "Non-numeric values detected"
-    elif count_currency_values(df):
-        issues["amount"] = "Currency-formatted values require cleaning"
 
-    return issues
+
+def invalid_date_mask(df: pd.DataFrame) -> pd.Series:
+    """Return a mask for missing or unparseable values in the date column.
+
+    The supported slash and day-month-year formats are normalized before
+    parsing, consistently with the cleaning pipeline. The DataFrame must
+    contain a ``date`` column.
+    """
+    date_values = (
+        df["date"]
+        .astype("string")
+        .fillna("")
+        .str.replace("/", "-", regex=False)
+        .str.strip()
+        .str.replace(
+            r"^(\d{2})-(\d{2})-(\d{4})$",
+            r"\3-\2-\1",
+            regex=True
+        )
+    )
+
+    return pd.to_datetime(date_values, errors="coerce").isna()
 
 
 def count_invalid_dates(df: pd.DataFrame) -> int:
@@ -85,25 +113,7 @@ def count_invalid_dates(df: pd.DataFrame) -> int:
     Returns:
         Number of missing or unparseable date values.
     """
-    # Normalize the supported input formats before parsing, just like clean_dates.
-    date_values = (
-        df["date"]
-        .astype("string")
-        .fillna("")
-        .str.replace("/", "-", regex=False)
-        .str.strip()
-        .str.replace(
-            r"^(\d{2})-(\d{2})-(\d{4})$",
-            r"\3-\2-\1",
-            regex=True
-        )
-    )
-
-    return int(
-        pd.to_datetime(date_values, errors="coerce")
-        .isna()
-        .sum()
-    )
+    return int(invalid_date_mask(df).sum())
 
 
 def count_duplicates(df: pd.DataFrame) -> int:

@@ -31,7 +31,7 @@ flowchart TD
 | `frontend/charts.py` | Altair charts with explicit chronological labels and date tooltips, rendered in Streamlit. |
 | `backend/load_csv.py` | Low-level CSV parsing for a path or file-like input. Selects delimiter and header behavior; leaves sales-schema decisions to its caller. |
 | `backend/csv_loader.py` | Sales-specific layer over `load_csv.py`; assigns required names for headerless sales files and rejects incompatible headerless layouts. |
-| `backend/validation.py` | Required-column checks; missing-value, amount-format, invalid-date, duplicate, and currency-value checks. |
+| `backend/validation.py` | Required-column checks; per-column missing-value counts; amount/date validity masks; duplicate and currency-format counts. |
 | `backend/cleaning.py` | Missing-value defaults, numeric amount conversion, date parsing, duplicate removal, and category normalization. |
 | `backend/transformation.py` | KPI calculation, sales grouped by category/date, and category sales distribution. |
 | `backend/insights.py` | Human-readable observations built from KPI and aggregation results. |
@@ -50,9 +50,21 @@ The current workflow expects these exact column names:
 | `category` | Normalized for consistent category grouping. |
 | `item` | Preserved as a sales record field and included in data cleaning. |
 
-If a required column is absent, validation reports it and the app does not
-allow the cleaning step to proceed. This is a sales-specific application; a
-file with different business data is not automatically mapped to this schema.
+If a required column is absent from a headered file, validation names the
+missing column(s), blocks cleaning, and offers a route back to upload so the
+user can correct and re-upload the CSV. This is a schema error, distinct from
+an empty cell in an existing column: empty cells are counted by column and
+filled during cleaning with the supported defaults. This is a sales-specific
+application; a file with different business data is not automatically mapped
+to this schema.
+
+Non-empty amount values that cannot be converted to numbers block cleaning.
+The validation screen identifies up to five example values with their
+one-based CSV data-row numbers; the user must correct those values in the CSV.
+Currency symbols and thousands separators are supported and removed during
+cleaning. Missing or unparseable dates are also shown with example values and
+data-row numbers, but do not block cleaning: their rows remain in totals and
+are excluded from date-based charts and insights.
 
 ## Cleaning and analytical behavior
 
@@ -94,13 +106,15 @@ headers enabled, the first row is interpreted as column names. When headers
 are disabled, the loader assigns `date`, `amount`, `category`, and `item` in
 that required order. Headerless files must have exactly four columns; files
 with another column count are rejected with a user-facing error before they
-reach validation; the message also prompts users to check the delimiter. The
+reach validation. The message reports the number of columns read and required
+order, and asks the user to check the delimiter. Since the file has no
+headers, the app cannot identify which named field is absent. The
 selected comma, tab, or semicolon delimiter applies in either mode. If the
 header option is off but a header row is detected, the loader asks the user to
 turn it on. If a headerless file is mistakenly read with headers enabled,
-validation reports missing columns and suggests checking the header option
-and delimiter. A headered file read as one column gets a specific delimiter
-warning.
+validation lists the missing required columns, suggests checking the header
+option and delimiter, and directs the user back to upload. A headered file
+read as one column gets a specific delimiter warning.
 
 The two loader modules have deliberately separate responsibilities:
 `backend/load_csv.py` performs the generic pandas read from a path or uploaded

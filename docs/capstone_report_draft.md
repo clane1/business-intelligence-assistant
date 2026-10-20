@@ -21,11 +21,15 @@ includes validation, data previews, automated cleaning, a sales dashboard,
 and generated business insights.
 
 The current application supports sales CSV files containing `date`, `amount`,
-`category`, and `item` columns. It does not currently support arbitrary
-business datasets, database integration, or forecasting. Development testing
-has used clean, messy, and structurally invalid sales fixtures. This report
-describes the system design, implementation, testing, limitations, and
-possible future development.
+`category`, and `item` columns. Validation distinguishes absent required
+columns from empty cells: absent columns block cleaning and are named for the
+user, while supported empty cells are filled with defined defaults. Values in
+the amount column that cannot be interpreted as numbers must be corrected in
+the source CSV; validation shows example values and their data-row numbers.
+The app does not currently support arbitrary business datasets, database
+integration, or forecasting. Development testing has used clean, messy, and
+structurally invalid sales fixtures. This report describes the system design,
+implementation, testing, limitations, and possible future development.
 
 **Keywords:** business intelligence, small enterprises, data quality, data
 cleaning, sales analytics, self-service analytics
@@ -112,7 +116,9 @@ project objectives are to:
 
 1. Accept sales data from CSV uploads.
 2. Check uploaded data for required columns and selected quality issues.
-3. Show an uploaded-data preview and explain validation findings.
+3. Show an uploaded-data preview and explain validation findings, including
+   which required columns are absent and examples of invalid amount/date
+   values.
 4. Clean supported issues and summarize the changes.
 5. Present core sales metrics, category summaries, and date-based
    visualizations.
@@ -134,7 +140,9 @@ data in memory using pandas. Its user-facing workflow has four stages:
 1. **Upload:** The user selects a sales CSV.
 2. **Validation:** The application checks required columns, reports selected
    quality metrics, and displays the dataset shape and a preview. If required
-   columns are missing, cleaning is blocked.
+   columns are missing, cleaning is blocked and the user is directed back to
+   upload to correct and re-upload the file. Empty cells in existing supported
+   columns are counted separately and can be filled during cleaning.
 3. **Cleaning:** The application applies supported cleaning operations and
    displays a summary and preview of the resulting data.
 4. **Analysis:** The application calculates sales metrics and aggregations,
@@ -163,9 +171,14 @@ with separate responsibilities:
 
 - `frontend/streamlit_app_v2.py` implements the upload and staged user
   workflow, including validation, cleaning, dashboard, and insights screens.
+- `backend/load_csv.py` parses CSV files using the selected delimiter and
+  header option without imposing a sales schema.
+- `backend/csv_loader.py` applies the sales-specific headerless column order
+  and reports incompatible headerless layouts before validation.
 - `backend/validation.py` checks required columns and reports missing values,
   amount-format issues, invalid dates, duplicates, and currency-formatted
-  amounts.
+  amounts. It also identifies invalid amount/date values for actionable
+  validation examples.
 - `backend/cleaning.py` fills supported missing values, converts amount
   values, parses dates, removes exact duplicate rows, and normalizes category
   labels.
@@ -175,14 +188,21 @@ with separate responsibilities:
   transformed sales data.
 
 The workflow expects the columns `date`, `amount`, `category`, and `item`.
-Cleaning removes dollar signs and thousands separators from amounts,
-normalizes category labels, and removes exact duplicate rows. Date strings
-should use ISO-like formats such as `YYYY-MM-DD`; unparseable dates are not
-guessed or repaired. Invalid or missing dates are excluded from time-based
-analysis but remain part of non-date KPI calculations. Trend charts use daily,
-weekly, or monthly totals depending on the valid date span, and generated
-time-based insights use that same interval. The exact behavior and limitations
-are documented in [the architecture document](./architecture.md).
+An absent required column is a schema error: validation names it, blocks
+cleaning, and directs the user to correct and upload the CSV again. This is
+different from an empty cell in an existing field; supported empty cells are
+counted by column and filled with documented defaults during cleaning.
+Non-empty amount values that cannot be converted to numbers are not guessed or
+silently replaced; validation shows up to five example values with their
+one-based data-row numbers and blocks cleaning until the source data is
+corrected. Currency symbols and thousands separators are supported and
+removed during cleaning. Missing or unparseable dates are similarly reported
+with examples, but do not block cleaning: those records remain in non-date
+totals and are excluded from time-based analysis. Date strings should use
+ISO-like formats such as `YYYY-MM-DD`; dates are not guessed or repaired.
+Trend charts use daily, weekly, or monthly totals depending on the valid date
+span, and generated time-based insights use that same interval. The exact
+behavior and limitations are documented in [the architecture document](./architecture.md).
 
 The application includes downloadable cleaned sales data and a text report of
 generated insights. It does not currently offer database integration,
@@ -195,8 +215,11 @@ The implemented prototype provides an end-to-end path from sales CSV upload
 to descriptive analysis. Users can see validation findings and previews
 before and after cleaning. The interface summarizes cleaning changes and
 shows sales KPIs, category/date visualizations, and generated insights.
-Missing required columns are reported and prevent the cleaning workflow from
-proceeding.
+Missing required columns are reported by name, prevent cleaning, and provide
+a clear route back to upload. The validation screen also shows example values
+and data-row numbers for non-numeric amounts and unreadable dates. Non-numeric
+amounts block cleaning; currency formatting is supported, and unreadable
+dates remain in sales totals while being excluded from date-based results.
 
 These results demonstrate the implemented prototype and its tested scenarios;
 they do not establish usability across a broad user population or measurable
@@ -206,11 +229,12 @@ as forecasting or causal analysis.
 
 ### 3.1 Testing
 
-The sales fixture collection covers ordinary and larger clean datasets,
-missing values, duplicate records, inconsistent category labels,
-currency-formatted amounts, malformed dates, zero-revenue data, and a file
-that omits a required column. The fixture inventory and manual test procedure
-are in [the testing document](./testing.md).
+The fifteen-file sales fixture collection covers ordinary and larger clean
+datasets, missing values, duplicate records, inconsistent category labels,
+currency-formatted amounts, malformed dates, zero-revenue data, a headered
+file that omits a required column, and a headerless file with an incorrect
+column count. The fixture inventory and manual test procedure are in [the
+testing document](./testing.md).
 
 The current fixture set is summarized below.
 
@@ -227,24 +251,27 @@ The current fixture set is summarized below.
 | `sales_yearly_trend_365.csv` | Daily sales records spanning a year. |
 | `sales_zero_revenue_12.csv` | Zero-revenue edge case. |
 | `sales_missing_amount_2.csv` | Invalid schema missing the required `amount` column. |
+| `sales_no_headers_clean_8.csv` | Clean headerless file with eight records. |
+| `sales_no_headers_messy_6.csv` | Headerless file with missing amount, invalid date, currency formatting, duplicate, and category variations. |
+| `sales_no_headers_semicolon_4.csv` | Valid headerless file using semicolons. |
+| `sales_no_headers_missing_column_2.csv` | Invalid headerless file with three columns instead of the required four. |
 
-On October 17, 2026, the upload, validation, cleaning, dashboard, and insight
-workflow was exercised against all eleven sales fixtures. Ten valid files
-completed the workflow. The structurally invalid fixture, which omits
-`amount`, was reported as missing a required column and blocked from cleaning.
-The browser check also confirmed that trend chart labels follow chronological
-order and that day-, week-, and month-based insights match the chart interval.
+On October 19, 2026, all fourteen automated regression tests passed. The
+regression suite covers sales fixtures through cleaning and analysis, trend
+interval boundaries, explicit chart labels, schema errors, validation masks,
+and single-category and zero-revenue edge cases. A separate sweep parsed and
+validated all fifteen bundled CSV files: the missing-`amount` headered file
+was identified by column name, valid headerless files were assigned the
+expected columns, and the malformed three-column headerless file was rejected
+with its observed count and required order.
 
-The automated regression suite completed six tests successfully. It covers
-all sales fixtures at the cleaning/transformation/insight level, date parsing,
-trend interval boundaries, explicit chart labels, and single-category and
-zero-revenue edge cases. The separate pipeline smoke script also completed
-successfully. Both checks passed in the latest verification run, and a
-browser smoke test with the clean 100-row fixture completed through the
-dashboard after the readability updates. The results are development
-verification, not a formal usability study or evidence of business impact.
-Record the final Python and package versions and rerun the checks before
-submission.
+Streamlit UI checks confirmed that a missing required column gives a
+re-upload instruction and a working route back to upload. Other UI checks
+confirmed that invalid date and non-numeric amount messages show example
+values with one-based data-row numbers and that cleaning is blocked for
+non-numeric amounts. These results are development verification, not a formal
+usability study or evidence of business impact. Record the final Python and
+package versions and rerun the checks before submission.
 
 For the final evaluation, document:
 
@@ -262,9 +289,11 @@ The test commands and fixture inventory are documented in
 
 The project implements a focused sales-data assistant that combines data
 validation, supported cleaning, transparent previews, descriptive metrics,
-visualizations, and generated insights in a guided interface. Testing with
-valid fixtures and a missing-required-column case demonstrates the core
-workflow and one structural failure path.
+visualizations, and generated insights in a guided interface. Validation
+distinguishes missing schema fields from empty cells, explains which source
+values require correction, and prevents analysis when required columns or
+numeric amount values are invalid. Fixture and UI checks demonstrate these
+behaviors alongside the supported cleaning and analysis workflow.
 
 The system is limited to sales CSV files and a defined set of cleaning rules.
 It does not currently support other dataset types, database-backed storage,

@@ -68,9 +68,10 @@ def load_sales_csv(
         if len(df.columns) != len(SALES_COLUMNS):
             raise SalesCsvFormatError(
                 f"This file has {len(df.columns)} column(s), but headerless "
-                "sales files need exactly four in this order: date, amount, "
-                "category, item. Check that the selected delimiter matches "
-                "the file."
+                "sales files need four in this order: date, amount, category, "
+                "item. One required field is missing or the delimiter is "
+                "incorrect. Because the file has no headers, the app can't "
+                "identify which field is missing."
             )
         df.columns = SALES_COLUMNS
 

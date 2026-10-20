@@ -33,6 +33,8 @@ from backend.transformation import (
 from backend.validation import (
     count_currency_values,
     count_invalid_dates,
+    invalid_amount_mask,
+    invalid_date_mask,
     validate_columns,
 )
 from frontend.charts import build_sales_trend_chart
@@ -113,7 +115,7 @@ class SalesTrendTests(unittest.TestCase):
         with fixture.open("rb") as source:
             with self.assertRaisesRegex(
                 SalesCsvFormatError,
-                "Check that the selected delimiter matches",
+                "can't identify which field is missing",
             ):
                 load_sales_csv(
                     source,
@@ -357,6 +359,29 @@ class SalesTrendTests(unittest.TestCase):
         )
 
         self.assertEqual(count_currency_values(df), 2)
+
+    def test_invalid_amount_and_date_masks_identify_bad_values(self) -> None:
+        """Expose exact unparseable values for user-facing validation details."""
+        df = pd.DataFrame(
+            {
+                "amount": ["25.00", "not-a-number", None, "$12.00"],
+                "date": [
+                    "2024-01-01",
+                    "not-a-date",
+                    None,
+                    "01-02-2024",
+                ],
+            }
+        )
+
+        self.assertEqual(
+            invalid_amount_mask(df).tolist(),
+            [False, True, False, False],
+        )
+        self.assertEqual(
+            invalid_date_mask(df).tolist(),
+            [False, True, True, False],
+        )
 
     def test_all_sales_fixtures_complete_analysis_or_are_blocked(self) -> None:
         """Analyze every standard fixture or check its expected schema error."""
