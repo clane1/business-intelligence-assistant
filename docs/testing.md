@@ -2,13 +2,31 @@
 
 ## Automated regression tests
 
-From the repository root, run the automated test suite:
+From the repository root, run the whole automated suite (the print-based
+`test_pipeline.py` is excluded because it is a smoke script, not a test):
 
 ```powershell
-.\venv\Scripts\python.exe -m unittest discover -s tests -p "test_sales_trend.py" -v
+.\venv\Scripts\python.exe -m unittest discover -s tests -p "test_[a-oq-z]*.py"
 ```
 
-The suite verifies date parsing, trend interval boundaries, explicit
+Add `-v` for one line per test. Run a single file with, for example,
+`.\venv\Scripts\python.exe -m unittest tests.test_recommendations`. Tests must
+be run from the repository root because fixtures use relative paths.
+
+| Test file | What it covers |
+|---|---|
+| `test_sales_trend.py` | Loader and delimiter/header handling, date parsing, trend granularity and chart labels, insight wording, and every CSV in `data/sales/`. |
+| `test_validation_cleaning.py` | Each validation check and cleaning step on small inputs: missing columns, blocking vs. fixable amounts, supported date formats, duplicates, category normalization. |
+| `test_recommendations.py` | Recommendation cards (counts, previews, examples), category spelling suggestions, and accept/reject behavior in `clean_with_choices`. |
+| `test_column_mapping.py` | Suggested and applied column mappings for custom headers. |
+| `test_upload_diagnosis.py` | Friendly loader errors and upload diagnosis (wrong delimiter, header-only file, header setting mismatch). |
+| `test_cleaning_report.py` | Contents of the downloadable cleaning report. |
+| `test_transformation.py` | KPIs, category and date aggregation, zero-revenue handling, and generated insights. |
+| `test_app_flow.py` | Headless end-to-end workflow through the Streamlit app (check page, apply fixes, dashboard, report, reset, blocked files, every fixture reaching Insights). |
+
+`test_sales_trend.py` in detail: it verifies date parsing, trend interval
+boundaries, explicit
+
 chronological labels for daily, weekly, and monthly charts, and analysis
 behavior across every standard CSV in `data/sales/`. It tests headerless
 loading with comma- and semicolon-delimited fixtures, including a messy file,
@@ -44,6 +62,8 @@ cases.
 | `sales_clean_1000.csv` | Clean dataset with 1,000 rows. |
 | `sales_messy_11.csv` | Small dataset with mixed data-quality issues. |
 | `sales_messy_1000.csv` | Larger messy dataset with missing values, duplicate rows, inconsistent category capitalization/spelling, malformed dates, and formatted amounts. |
+| `sales_custom_headers_8.csv` | Valid data under non-standard headers (`Transaction Date`, `Revenue`, `Department`, `Product`) plus an unused `Region` column; exercises column matching. Excluded from the exact-schema fixture test. |
+| `sales_misspelled_categories_20.csv` | Twenty rows with typo categories (`Electonics`, `Clothng`, `Fodd`) and a legitimate rare category (`Toys`) that must not be flagged. |
 | `sales_returns_100.csv` | Sales data including return/negative-amount cases. |
 | `sales_single_category_50.csv` | Dataset with a single category. |
 | `sales_validation_issues_5.csv` | Small dataset for validation and cleaning scenarios. |
@@ -77,19 +97,49 @@ transformations, charting, or insight generation.
 
 ## Suggested manual evaluation procedure
 
+Upload-setting problems should be caught on the upload page with an
+instruction to change a specific setting and choose the file again. Try: a
+semicolon file with **Comma** selected (names **Semicolon**), a headerless file
+with the header checkbox on (says the first row looks like data), a header-only
+file (no data rows), an empty file, and a non-CSV file such as an image
+renamed to `.csv`. None should show a Python error, and **Continue to data
+checks** should not appear for the first three.
+
 For each valid fixture:
 
 1. Upload the file in the Streamlit app.
 2. Confirm the required-column check passes and the preview/shape are shown.
-3. Review validation counts and proceed to cleaning.
+3. Review validation counts and the recommended actions (each shows a
+   **Preview** of the affected rows or values), then apply them.
+   Repeat with each fix accepted and rejected: duplicates (**Remove
+   duplicates**), missing amounts (**Apply fix**; rejecting leaves them empty
+   and excluded from KPIs), and invalid dates (**Exclude from trends** or
+   **Remove rows entirely**). For `sales_misspelled_categories_20.csv`, accept
+   and reject each category correction (for example `Electonics → Electronics`)
+   and confirm `Toys` is not flagged. Confirm the row counts shown under **Impact**.
 4. Confirm the cleaning summary and cleaned preview appear.
 5. Confirm the dashboard and insights load without an error.
-6. For the zero-revenue fixture, confirm the UI explains unavailable revenue
+6. On the dashboard, open **View cleaning report** and download it. Check that
+   rows before/after match the cleaning summary, and that accepted fixes read
+   "removed"/"replaced" while rejected fixes read "kept"/"left empty". For
+   `sales_messy_1000.csv` with defaults: 1000 rows before, 990 after, 8 duplicates
+   removed, 2 missing amounts replaced with 0, 5 invalid dates excluded from
+   trends, 3 currency-formatted amounts converted, and 2 blank-category rows removed.
+   If you matched columns, the report should list them.
+7. For the zero-revenue fixture, confirm the UI explains unavailable revenue
    comparisons instead of failing.
 
 For `sales_missing_amount_2.csv`, confirm that validation identifies
 `amount` as missing, directs the user to correct and re-upload the CSV, offers
-a **Back to Upload Data** action, and prevents cleaning and analysis.
+a **Back to Upload Data** action, and prevents cleaning and analysis. In the
+**Match your columns** form, confirm that leaving `amount` as "(not in my
+file)" is rejected with a message, and that no other column is suggested for it.
+
+For `sales_custom_headers_8.csv`, confirm the form suggests `Transaction Date`,
+`Revenue`, `Department`, and `Product`, that **Use these columns** removes the
+missing-column error and ignores `Region`, and that cleaning then continues to
+the dashboard. Also try choosing the same file column for two values and confirm
+it is rejected.
 
 For valid `sales_no_headers_*.csv` files, turn off the header-row checkbox,
 select the fixture's delimiter, and confirm the app recognizes the columns in

@@ -34,16 +34,28 @@ Open the local URL printed by Streamlit in a browser. To stop the server, press
 
 ## Use the application
 
-1. Upload a sales CSV.
+1. Upload a sales CSV. The requirements and an example file are shown below
+   the uploader.
 2. Check which columns are present, review empty cells and unusual dates, and
-   preview the uploaded file.
-3. Run cleaning when the required columns are present; review the cleaning
-   summary and cleaned-data preview.
-4. Explore the dashboard and generated insights.
+   preview the uploaded file. The page is split into **Data summary**, **Data
+   quality metrics**, **Recommended actions**, and **Apply fixes**.
+3. Review the recommended actions for duplicate rows, missing amounts,
+   unreadable dates, and likely misspelled category names (for example
+   `Electonics` → `Electronics`). Each shows a preview of the affected rows or
+   values. Accept or reject each one, then apply the selected fixes; nothing is
+   changed before that. Review the cleaning summary and cleaned-data preview.
+4. Explore the dashboard and generated insights. The dashboard summary
+   includes **View cleaning report** and **Download Cleaning Report**: a text
+   file listing rows before and after, and each issue found with what was done
+   about it (including fixes you rejected).
 
 The required columns are `date`, `amount`, `category`, and `item`. If a
-headered file is missing a required column, validation names it, blocks
-cleaning, and provides a **Back to Upload Data** action so you can correct the
+headered file uses different names (for example `Transaction Date`, `Revenue`,
+`Department`, `Product`), the check page shows a **Match your columns** form
+with suggestions filled in. Confirm it and the app uses your columns under the
+required names; other columns in the file are not used. If a required value
+isn't in your file at all, validation names it, blocks cleaning, and provides a
+**Back to Upload Data** action so you can correct the
 CSV and upload it again. A missing column is different from an empty cell:
 empty cells are listed by column and filled with the app's documented defaults
 during cleaning.
@@ -75,15 +87,16 @@ represent refunds or returns.
 
 ## Tests
 
-Run the automated regression tests from the repository root:
+Run the automated tests from the repository root:
 
 ```powershell
-.\venv\Scripts\python.exe -m unittest discover -s tests -p "test_sales_trend.py" -v
+.\venv\Scripts\python.exe -m unittest discover -s tests -p "test_[a-oq-z]*.py"
 ```
 
-The tests check date parsing, daily/weekly/monthly trend selection and labels,
-and all sales CSV fixtures, including schema errors and invalid amount/date
-examples. A separate sample-data smoke check is also available:
+They cover validation and cleaning, recommendations and category suggestions,
+column mapping, upload diagnosis, the cleaning report, dashboard calculations,
+all sales CSV fixtures, and a headless run of the whole app workflow. A
+separate sample-data smoke check is also available:
 
 ```powershell
 .\venv\Scripts\python.exe tests\test_pipeline.py

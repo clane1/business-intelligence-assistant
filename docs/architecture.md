@@ -10,11 +10,17 @@ database, external API, or persistent upload store.
 
 ```mermaid
 flowchart TD
-    A[CSV upload] --> B[Required-column and quality validation]
-    B --> C{Required columns present?}
-    C -- No --> D[Show missing columns and block cleaning]
-    C -- Yes --> E[Clean supported values]
+    A[CSV upload] --> A2{Upload diagnosis: delimiter, header row, empty file}
+    A2 -- Problem --> A3[Explain and ask user to fix settings or file]
+    A2 -- OK --> M[Match columns when headers differ]
+    M --> B[Required-column and quality validation]
+    B --> C{Required columns present and amounts numeric?}
+    C -- No --> D[Explain how to fix, block cleaning, offer Back to Upload]
+    C -- Yes --> R[Recommended actions: duplicates, missing amounts, invalid dates, category spelling]
+    R --> U[User accepts or rejects each fix]
+    U --> E[Clean using only the accepted fixes]
     E --> F[Cleaning summary and cleaned preview]
+    F --> P[Downloadable cleaning report]
     F --> G[Sales KPIs and aggregations]
     G --> H[Dashboard charts]
     G --> I[Generated insights]
@@ -30,14 +36,17 @@ flowchart TD
 | `frontend/streamlit_app.py` | Original single-page Streamlit prototype retained as an alternate entry point. |
 | `frontend/charts.py` | Altair charts with explicit chronological labels and date tooltips, rendered in Streamlit. |
 | `backend/load_csv.py` | Low-level CSV parsing for a path or file-like input. Selects delimiter and header behavior; leaves sales-schema decisions to its caller. |
-| `backend/csv_loader.py` | Sales-specific layer over `load_csv.py`; assigns required names for headerless sales files and rejects incompatible headerless layouts. |
-| `backend/validation.py` | Required-column checks; per-column missing-value counts; amount/date validity masks; duplicate and currency-format counts. |
+| `backend/csv_loader.py` | Sales-specific layer over `load_csv.py`; assigns required names for headerless sales files, rejects incompatible layouts, and turns empty/unreadable/ragged files into friendly errors. |
+| `backend/upload_diagnosis.py` | Detects likely upload-setting mistakes (wrong delimiter, header-only file, first row that looks like data) and names the fix. |
+| `backend/column_mapping.py` | Suggests and applies a mapping from a file's own headers (for example `Revenue`) to the required column names. |
+| `backend/validation.py` | Required-column checks; per-column missing-value counts; amount/date validity masks; duplicate, missing-amount, and currency-format counts. |
+| `backend/recommendations.py` | Builds the recommended actions (count, suggested fix, impact, preview, examples), suggests category spelling corrections, and cleans using only the fixes the user accepted. |
 | `backend/cleaning.py` | Missing-value defaults, numeric amount conversion, date parsing, duplicate removal, and category normalization. |
+| `backend/cleaning_report.py` | Formats the cleaning summary as the plain-text report offered for download. |
 | `backend/transformation.py` | KPI calculation, sales grouped by category/date, and category sales distribution. |
 | `backend/insights.py` | Human-readable observations built from KPI and aggregation results. |
 | `data/sales/` | Example and test CSVs for supported and intentionally invalid sales scenarios. |
-| `tests/test_sales_trend.py` | Automated date, chart, fixture, and insight regression tests. |
-| `tests/test_pipeline.py` | Print-based development smoke script for the sample data pipeline. |
+| `tests/` | Automated tests; see [testing.md](testing.md) for what each file covers. |
 
 ## Data contract
 
@@ -65,6 +74,27 @@ Currency symbols and thousands separators are supported and removed during
 cleaning. Missing or unparseable dates are also shown with example values and
 data-row numbers, but do not block cleaning: their rows remain in totals and
 are excluded from date-based charts and insights.
+
+## Recommended actions (accept or reject before cleaning)
+
+Validation never changes the data. For each issue found, the app shows a card
+with the issue, a suggested fix, its impact, a preview of affected rows or
+values, and a choice:
+
+| Issue | Default choice | Alternative |
+| --- | --- | --- |
+| Duplicate rows | Remove them | Keep them |
+| Missing amounts | Replace with 0 | Leave empty (ignored in totals and averages) |
+| Invalid dates | Keep rows, exclude from trends | Remove the rows entirely |
+| Likely misspelled category (for example `Electonics`) | Apply the correction | Keep the original value |
+
+Category suggestions use `difflib.SequenceMatcher` with a 0.75 similarity
+threshold, and only flag a label that is rarer than a very similar one, so
+legitimate uncommon categories are normally left alone. Suggestions can still
+be wrong, which is why each one is a choice. After the user applies the
+choices, `clean_with_choices` returns the cleaned data and a summary, and
+`build_cleaning_report` turns that summary into the downloadable report. The
+original upload is never modified.
 
 ## Cleaning and analytical behavior
 

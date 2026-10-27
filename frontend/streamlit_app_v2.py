@@ -86,7 +86,35 @@ from backend.cleaning import (
     normalize_categories
 )
 
+from backend.recommendations import (
+    CleaningChoices,
+    build_recommendations,
+    clean_with_choices,
+    suggest_category_corrections,
+)
+
+from backend.column_mapping import (
+    ColumnMappingError,
+    apply_mapping,
+    suggest_mapping,
+)
+
+from backend.cleaning_report import build_cleaning_report
+
+from backend.upload_diagnosis import diagnose_upload
+
 from frontend.charts import format_display_date, render_sales_trend
+
+REVIEW_WIDGET_KEYS = (
+    "fix_duplicates",
+    "fix_missing_amounts",
+    "invalid_date_handling",
+)
+NOT_IN_FILE = "(not in my file)"
+EXCLUDE_FROM_TRENDS = "Exclude from trends (keep the sales values)"
+REMOVE_DATE_ROWS = "Remove rows entirely"
+APPLY_CORRECTION = "Apply correction"
+KEEP_ORIGINAL = "Keep original value"
 
 
 def _format_count(count: int | str, item: str) -> str:
@@ -238,6 +266,18 @@ if "clean_df" not in st.session_state:
 if "cleaning_summary" not in st.session_state:
     st.session_state.cleaning_summary = None
 
+if "source_df" not in st.session_state:
+    st.session_state.source_df = None
+
+if "column_mapping" not in st.session_state:
+    st.session_state.column_mapping = None
+
+if "source_name" not in st.session_state:
+    st.session_state.source_name = None
+
+if "cleaning_report" not in st.session_state:
+    st.session_state.cleaning_report = None
+
 # ==========================================
 # WORKFLOW SIDEBAR
 # ==========================================
@@ -338,6 +378,16 @@ with st.sidebar:
         st.session_state.raw_df = None
         st.session_state.clean_df = None
         st.session_state.cleaning_summary = None
+        st.session_state.source_df = None
+        st.session_state.source_name = None
+        st.session_state.cleaning_report = None
+        st.session_state.column_mapping = None
+        for key in list(st.session_state.keys()):
+            if (
+                key in REVIEW_WIDGET_KEYS
+                or key.startswith(("fix_category_", "map_"))
+            ):
+                del st.session_state[key]
         st.rerun()
 
 # ==========================================
@@ -444,59 +494,6 @@ if st.session_state.current_step == 1:
     )
 
     # --------------------------------------
-    # REQUIRED CSV FORMAT
-    # --------------------------------------
-    #
-    # Provides users with clear guidance on
-    # the expected structure of the dataset.
-    #
-    # This reduces validation errors and helps
-    # users prepare compatible CSV files.
-    #
-    # --------------------------------------
-
-    st.markdown(
-        """
-    ### Sales Data Requirements
-
-    """
-    )
-
-    st.info(
-        "Sales data is the only supported type right now. Amounts may include "
-        "dollar signs and commas. For best results, enter dates in "
-        "year-month-day order, like 2024-01-31. Dates the app cannot read "
-        "aren't shown in the sales trend or date-related insights, but their "
-        "sales amounts still count "
-        "in the totals."
-    )
-
-    st.markdown(
-        """
-    ### Columns your file needs
-
-    | Column name | What it means | Example |
-    |----------|----------|----------|
-    | `date` | Date of the sale | 2024-01-01 |
-    | `amount` | Sale amount | 25.48 |
-    | `category` | Product category | Electronics |
-    | `item` | Product or service sold | Mouse |
-
-    ### Example Dataset
-    """
-    )
-
-    st.code(
-        """
-    date,amount,category,item
-    2024-01-01,25.48,Electronics,Mouse
-    2024-01-02,15.99,Food,Coffee
-    2024-01-03,63.99,Clothing,Jacket
-    2024-01-04,119.99,Electronics,Monitor
-    """
-    )
-
-    # --------------------------------------
     # FILE UPLOAD
     # --------------------------------------
     #
@@ -515,6 +512,10 @@ if st.session_state.current_step == 1:
         "Choose your sales CSV file",
         type=["csv"]
     )
+
+    # Upload results appear directly under the
+    # uploader, above the requirements below.
+    upload_status = st.container()
 
     if uploaded_file is not None:
         # Convert user-friendly delimiter names
@@ -540,34 +541,91 @@ if st.session_state.current_step == 1:
                 headers_included=headers_included,
             )
         except SalesCsvFormatError as error:
-            st.error(str(error))
-            st.stop()
+            upload_status.error(str(error))
         else:
-            # Store uploaded dataset so that it can
-            # be accessed by validation, cleaning,
-            # dashboard, and insight-generation
-            # modules later in the workflow.
-
-            st.session_state.raw_df = df
-            st.session_state.cleaning_summary = None
-
-            st.success(
-                "Dataset uploaded successfully."
+            problem = diagnose_upload(
+                df,
+                delimiter_map[delimiter],
+                headers_included,
             )
+            if problem:
+                upload_status.warning(problem)
+            else:
+                # Store uploaded dataset so that it can
+                # be accessed by validation, cleaning,
+                # dashboard, and insight-generation
+                # modules later in the workflow.
 
-            # Once the dataset has been uploaded
-            # successfully, the user may proceed
-            # to the validation stage.
-            #
-            # Updating current_step causes the
-            # application to render Step 2.
+                st.session_state.raw_df = df
+                st.session_state.source_df = df
+                st.session_state.source_name = uploaded_file.name
+                st.session_state.column_mapping = None
+                for key in list(st.session_state.keys()):
+                    if key.startswith("map_"):
+                        del st.session_state[key]
+                st.session_state.cleaning_summary = None
 
-            if st.button(
-                "Continue to data checks"
-            ):
-                st.session_state.current_step = 2
-                st.rerun()
-            
+                upload_status.success(
+                    "Dataset uploaded successfully."
+                )
+
+                # Once the dataset has been uploaded
+                # successfully, the user may proceed
+                # to the validation stage.
+                #
+                # Updating current_step causes the
+                # application to render Step 2.
+
+                if upload_status.button(
+                    "Continue to data checks"
+                ):
+                    st.session_state.current_step = 2
+                    st.rerun()
+
+    # --------------------------------------
+    # REQUIRED CSV FORMAT AND EXAMPLE
+    # --------------------------------------
+    #
+    # Guidance follows the upload control so
+    # the primary action comes first.
+    #
+    # --------------------------------------
+
+    st.markdown("### Sales data requirements")
+
+    st.info(
+        "Sales data is the only supported type right now. Amounts may include "
+        "dollar signs and commas. For best results, enter dates in "
+        "year-month-day order, like 2024-01-31. Dates the app cannot read "
+        "aren't shown in the sales trend or date-related insights, but their "
+        "sales amounts still count "
+        "in the totals."
+    )
+
+    st.markdown(
+        """
+    ### Columns your file needs
+
+    | Column name | What it means | Example |
+    |----------|----------|----------|
+    | `date` | Date of the sale | 2024-01-01 |
+    | `amount` | Sale amount | 25.48 |
+    | `category` | Product category | Electronics |
+    | `item` | Product or service sold | Mouse |
+    """
+    )
+
+    st.markdown("### Example dataset")
+
+    st.code(
+        "date,amount,category,item\n"
+        "2024-01-01,25.48,Electronics,Mouse\n"
+        "2024-01-02,15.99,Food,Coffee\n"
+        "2024-01-03,63.99,Clothing,Jacket\n"
+        "2024-01-04,119.99,Electronics,Monitor\n"
+    )
+
+
 # ==========================================
 # STEP 2 - VALIDATION
 # ==========================================
@@ -620,7 +678,7 @@ if st.session_state.current_step == 2:
         required_columns
     )
 
-    st.header("Data check results")
+    st.header("Data summary")
 
     st.subheader("Dataset Preview")
     st.dataframe(
@@ -645,16 +703,21 @@ if st.session_state.current_step == 2:
             )
         if len(df.columns) == 1:
             st.warning(
-                "Only one column was read. Check that the selected delimiter "
-                "matches the separator used in your file."
+                "Only one column was read, so the file's separator probably "
+                "doesn't match the **What separates the columns?** setting."
             )
-        st.info(
-            "If these columns are present in your file, check that the header "
-            "option and selected delimiter match its format."
-        )
-        st.warning(
-            "To continue, go back to Upload Data, correct the missing column "
-            "in your CSV, and upload the corrected file."
+        st.markdown(
+            "**How to fix this**\n\n"
+            "1. If your file uses different names for these values (for "
+            "example *Revenue* instead of *amount*), match them in the "
+            "**Match your columns** form below.\n"
+            "2. If the preview above looks wrong (everything in one column, "
+            "or the first row is data), click **Back to Upload Data**, "
+            "change the **separator** or **first row contains column "
+            "names** setting, and choose your file again.\n"
+            "3. If a required column really isn't in your file, add it in "
+            "your spreadsheet, save as CSV, click **Back to Upload Data**, "
+            "and choose the corrected file."
         )
         if st.button("Back to Upload Data"):
             st.session_state.current_step = 1
@@ -663,6 +726,77 @@ if st.session_state.current_step == 2:
         st.success(
             "Your file has all the columns needed for sales analysis."
         )
+
+    # --------------------------------------
+    # COLUMN MATCHING
+    # --------------------------------------
+    #
+    # Lets users map their own column names
+    # (e.g. Revenue) to the required ones.
+    # Suggestions come from known aliases and
+    # close spellings; nothing is applied
+    # until the user confirms.
+    #
+    # --------------------------------------
+
+    source_df = st.session_state.source_df
+    if source_df is not None and validate_columns(source_df, required_columns):
+        applied_mapping = st.session_state.column_mapping
+        if applied_mapping:
+            st.caption(
+                "Columns matched: "
+                + ", ".join(
+                    f"{source} → {target}"
+                    for target, source in applied_mapping.items()
+                )
+                + ". Other columns in your file are not used."
+            )
+
+        with st.expander(
+            "Match your columns" if missing_columns else "Change column matching",
+            expanded=bool(missing_columns),
+        ):
+            st.write(
+                "Choose which column in your file provides each value the "
+                "app needs. Suggestions are filled in where a name looks "
+                "similar."
+            )
+            suggestions = applied_mapping or suggest_mapping(
+                list(source_df.columns)
+            )
+            options = [NOT_IN_FILE] + [str(c) for c in source_df.columns]
+            chosen = {}
+            for target in required_columns:
+                suggested = suggestions.get(target)
+                default = (
+                    options.index(str(suggested))
+                    if suggested is not None and str(suggested) in options
+                    else 0
+                )
+                choice = st.selectbox(
+                    f"{target.capitalize()} column",
+                    options,
+                    index=default,
+                    key=f"map_{target}",
+                )
+                chosen[target] = None if choice == NOT_IN_FILE else choice
+
+            if st.button("Use these columns"):
+                try:
+                    st.session_state.raw_df = apply_mapping(
+                        source_df.rename(columns=str), chosen
+                    )
+                except ColumnMappingError as error:
+                    st.error(str(error))
+                else:
+                    st.session_state.column_mapping = chosen
+                    for key in list(st.session_state.keys()):
+                        if (
+                            key in REVIEW_WIDGET_KEYS
+                            or key.startswith("fix_category_")
+                        ):
+                            del st.session_state[key]
+                    st.rerun()
 
     # --------------------------------------
     # VALIDATION SUMMARY
@@ -677,6 +811,9 @@ if st.session_state.current_step == 2:
     # --------------------------------------
 
     total_missing = validate_missing(df).sum()
+
+    st.divider()
+    st.header("Data quality metrics")
 
     invalid_dates = (
         count_invalid_dates(df)
@@ -739,10 +876,8 @@ if st.session_state.current_step == 2:
             f"Your file has {_format_count(total_missing, 'empty cell')}, "
             f"{_format_count(duplicate_rows, 'repeated row')}, "
             f"{_format_count(currency_values, 'amount with dollar signs or commas')}, "
-            f"and {_format_count(invalid_dates, 'unreadable date')}. Cleaning fills "
-            "empty cells, removes repeated rows, and cleans supported amount "
-            "formats. Unreadable dates are left unchanged and excluded from "
-            "sales trend or date-related insights."
+            f"and {_format_count(invalid_dates, 'unreadable date')}. Review the "
+            "recommended actions below; nothing changes until you apply them."
         )
 
     st.subheader(
@@ -779,9 +914,18 @@ if st.session_state.current_step == 2:
         )
         st.error(
             f"{int(invalid_amounts.sum())} value(s) in the amount column "
-            "aren't numbers and can't be cleaned automatically. Correct "
-            f"these CSV data rows before cleaning: {invalid_amount_examples}."
+            "aren't numbers and can't be cleaned automatically. These rows "
+            f"need correcting: {invalid_amount_examples}."
         )
+        st.markdown(
+            "**How to fix this:** open your file in a spreadsheet, replace "
+            "or delete those values in the amount column (row numbers count "
+            "data rows, not the header), save as CSV, then click **Back to "
+            "Upload Data** and choose the corrected file."
+        )
+        if st.button("Back to Upload Data", key="back_amounts"):
+            st.session_state.current_step = 1
+            st.rerun()
     elif issues.get("amount") == "Currency-formatted values require cleaning":
         st.info(
             "Some amounts include dollar signs or commas. The app will "
@@ -805,54 +949,155 @@ if st.session_state.current_step == 2:
     # The cleaned data is stored in Session
     # State and the user advances to the
     # Dashboard stage.
+    # Review the suggested fixes. Nothing is
+    # changed until the user confirms below.
+    choices = CleaningChoices()
+    no_fixes_needed = False
+    cleaning_blocked = bool(
+        missing_columns
+        or issues.get("amount") == "Non-numeric values detected"
+    )
+
+    if not missing_columns:
+        st.divider()
+        st.header("Recommended actions")
+        recommendations = build_recommendations(df)
+        category_corrections = suggest_category_corrections(df)
+
+        if not recommendations and not category_corrections:
+            no_fixes_needed = True
+            st.success("No fixes are needed for duplicates, missing amounts, dates, or category spelling.")
+
+        choice_values = {
+            "remove_duplicates": False,
+            "fill_missing_amounts": False,
+            "remove_invalid_date_rows": False,
+        }
+        accepted_corrections = {}
+
+        if category_corrections:
+            with st.container(border=True):
+                st.subheader(
+                    f"{_format_count(len(category_corrections), 'possible category misspelling')} found"
+                )
+                st.markdown(
+                    "**Suggested fix:** Rename uncommon spellings to the "
+                    "similar category used more often"
+                )
+                st.markdown(
+                    "**Impact:** Sales are grouped under the corrected "
+                    "category in charts and insights."
+                )
+                for correction in category_corrections:
+                    st.markdown(
+                        f"**{correction.original} → {correction.suggestion}** "
+                        f"({_format_count(correction.count, 'row')})"
+                    )
+                    st.markdown(f"**Preview:** {correction.preview}")
+                    decision = st.radio(
+                        f"Choice for {correction.original}",
+                        [APPLY_CORRECTION, KEEP_ORIGINAL],
+                        key=f"fix_category_{correction.original}",
+                        horizontal=True,
+                        label_visibility="collapsed",
+                    )
+                    if decision == APPLY_CORRECTION:
+                        accepted_corrections[correction.original] = (
+                            correction.suggestion
+                        )
+        for recommendation in recommendations:
+            with st.container(border=True):
+                st.subheader(recommendation.title)
+                st.markdown(f"**Suggested fix:** {recommendation.suggested_fix}")
+                st.markdown(f"**Impact:** {recommendation.impact}")
+                if recommendation.examples:
+                    st.markdown(
+                        "**Examples:**\n\n"
+                        + "\n".join(f"- {example}" for example in recommendation.examples)
+                    )
+                else:
+                    st.markdown(f"**Preview:** {recommendation.preview}")
+
+                if recommendation.key == "duplicates":
+                    choice_values["remove_duplicates"] = st.checkbox(
+                        "Remove duplicates",
+                        value=True,
+                        key="fix_duplicates",
+                    )
+                elif recommendation.key == "missing_amounts":
+                    choice_values["fill_missing_amounts"] = st.checkbox(
+                        "Apply fix",
+                        value=True,
+                        key="fix_missing_amounts",
+                    )
+                elif recommendation.key == "invalid_dates":
+                    date_choice = st.radio(
+                        "How should these rows be handled?",
+                        [EXCLUDE_FROM_TRENDS, REMOVE_DATE_ROWS],
+                        key="invalid_date_handling",
+                    )
+                    choice_values["remove_invalid_date_rows"] = (
+                        date_choice == REMOVE_DATE_ROWS
+                    )
+
+        choices = CleaningChoices(
+            **choice_values,
+            category_corrections=accepted_corrections,
+        )
+
+    # Execute the cleaning pipeline with the
+    # accepted fixes. The cleaned data is stored
+    # in Session State and the user advances to
+    # the Dashboard stage.
+    st.divider()
+    if cleaning_blocked:
+        st.header("Apply fixes")
+        st.warning(
+            "Cleaning is unavailable until the problem above is fixed: "
+            + (
+                "a required column is missing."
+                if missing_columns
+                else "some amounts aren't numbers."
+            )
+            + " Fix it in your file and upload it again."
+        )
+        apply_label = "Apply selected fixes and view dashboard"
+    elif no_fixes_needed:
+        st.header("Continue")
+        st.write(
+            "There's nothing to review. Routine formatting, such as "
+            "removing dollar signs and standardizing category capitalization, "
+            "is still applied to a copy of your data. Your uploaded file is "
+            "not changed."
+        )
+        apply_label = "Continue to dashboard"
+    else:
+        st.header("Apply fixes")
+        st.write(
+            "Your choices above are applied to a copy of your data. Your "
+            "uploaded file is not changed."
+        )
+        apply_label = "Apply selected fixes and view dashboard"
     if st.button(
-        "Clean data and view dashboard",
-        disabled=bool(
-            missing_columns
-            or issues.get("amount") == "Non-numeric values detected"
-        )
+        apply_label,
+        disabled=cleaning_blocked
     ):
-
-        rows_before = len(df)
-        missing_cells_before = int(df[required_columns].isna().sum().sum())
-        invalid_dates_before = count_invalid_dates(df)
-        df = df.copy()
-
-        df = clean_missing(df)
-
-        df = clean_types(df)
-
-        df = clean_dates(
-            df,
-            ["date"]
-        )
-
-        rows_before_deduplication = len(df)
-        df = clean_duplicates(df)
-        duplicates_removed = rows_before_deduplication - len(df)
-
-        rows_before_category_filter = len(df)
-        df = normalize_categories(
-            df,
-            "category"
-        )
-        category_rows_removed = rows_before_category_filter - len(df)
+        df, cleaning_summary = clean_with_choices(df, choices)
 
         if df.empty:
             st.error(
-                "No rows remain after cleaning. Check that the dataset "
-                "contains usable category values."
+                "No rows remain after cleaning, because every row has a "
+                "blank category. Add category values in your file, then go "
+                "back to Upload Data and choose the corrected file."
             )
         else:
             st.session_state.clean_df = df
-            st.session_state.cleaning_summary = {
-                "rows_before": rows_before,
-                "rows_after": len(df),
-                "duplicates_removed": duplicates_removed,
-                "category_rows_removed": category_rows_removed,
-                "missing_cells_filled": missing_cells_before,
-                "invalid_dates": invalid_dates_before,
-            }
+            st.session_state.cleaning_summary = cleaning_summary
+            st.session_state.cleaning_report = build_cleaning_report(
+                cleaning_summary,
+                source_name=st.session_state.source_name,
+                column_mapping=st.session_state.column_mapping,
+            )
             st.session_state.current_step = 3
             st.rerun()
 
@@ -933,9 +1178,33 @@ if st.session_state.current_step == 3:
             f"and {_format_count(summary['category_rows_removed'], 'category row')} "
             "with blank or unrecognized names. "
             f"Filled {_format_count(summary['missing_cells_filled'], 'empty cell')}. "
-            f"The app couldn't read {_format_count(summary['invalid_dates'], 'date')}; "
-            "those rows are not included in the sales trend or date-related insights."
+            + (
+                f"Corrected the spelling of {_format_count(summary['categories_corrected'], 'category row')}. "
+                if summary["categories_corrected"] else ""
+            )
+            + (
+                f"Left {_format_count(summary['missing_amounts_left'], 'missing amount')} "
+                "empty, so they are ignored in totals and averages. "
+                if summary["missing_amounts_left"] else ""
+            )
+            + (
+                f"Removed {_format_count(summary['date_rows_removed'], 'row')} "
+                "with unreadable dates."
+                if summary["date_rows_removed"]
+                else f"The app couldn't read {_format_count(summary['invalid_dates'], 'date')}; "
+                "those rows are not included in the sales trend or date-related insights."
+            )
         )
+
+        if st.session_state.cleaning_report:
+            with st.expander("View cleaning report"):
+                st.text(st.session_state.cleaning_report)
+            st.download_button(
+                label="Download Cleaning Report",
+                data=st.session_state.cleaning_report,
+                file_name="cleaning_report.txt",
+                mime="text/plain",
+            )
 
     st.subheader("Cleaned Dataset Preview")
     cleaned_preview = df.head(10).copy()

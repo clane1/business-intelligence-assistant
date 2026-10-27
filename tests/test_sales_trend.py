@@ -388,9 +388,11 @@ class SalesTrendTests(unittest.TestCase):
         fixtures = sorted(
             fixture
             for fixture in SALES_DATA.glob("*.csv")
-            if not fixture.name.startswith("sales_no_headers_")
+            if not fixture.name.startswith(
+                ("sales_no_headers_", "sales_custom_headers_")
+            )
         )
-        self.assertEqual(len(fixtures), 11)
+        self.assertEqual(len(fixtures), 12)
 
         for fixture in fixtures:
             with self.subTest(fixture=fixture.name):

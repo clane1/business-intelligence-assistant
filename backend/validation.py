@@ -128,6 +128,13 @@ def count_duplicates(df: pd.DataFrame) -> int:
     return int(df.duplicated().sum())
 
 
+def count_missing_amounts(df: pd.DataFrame) -> int:
+    """Count empty cells in the ``amount`` column (0 if the column is absent)."""
+    if "amount" not in df.columns:
+        return 0
+    return int(df["amount"].isna().sum())
+
+
 def count_currency_values(df: pd.DataFrame) -> int:
     """Count amount cells containing dollar signs or comma separators.
 
