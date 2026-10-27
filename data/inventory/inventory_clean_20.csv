@@ -1,0 +1,21 @@
+item,category,quantity,unit_cost,reorder_level,last_updated
+Laptop,Electronics,12,899.99,5,2024-03-01
+Monitor,Electronics,25,189.50,10,2024-03-01
+Keyboard,Electronics,60,24.99,20,2024-03-02
+Mouse,Electronics,4,12.49,15,2024-03-02
+Jacket,Clothing,40,59.00,10,2024-03-03
+T-Shirt,Clothing,300,6.75,100,2024-03-03
+Jeans,Clothing,85,32.00,30,2024-03-03
+Socks,Clothing,500,1.20,200,2024-03-04
+Stapler,Office,70,4.25,25,2024-03-04
+Notebook,Office,900,1.75,300,2024-03-04
+Pens (Box),Office,150,3.10,50,2024-03-05
+Printer,Office,6,149.00,5,2024-03-05
+Coffee Beans,Food,200,8.40,80,2024-03-06
+Tea Bags,Food,350,2.60,100,2024-03-06
+Granola Bars,Food,1200,0.65,400,2024-03-06
+Board Game,Toys,30,22.00,10,2024-03-07
+Puzzle,Toys,18,14.50,10,2024-03-07
+Action Figure,Toys,95,9.99,25,2024-03-07
+Desk Lamp,Office,22,18.75,10,2024-03-08
+Headphones,Electronics,45,79.00,15,2024-03-08

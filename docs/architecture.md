@@ -35,14 +35,16 @@ flowchart TD
 | `frontend/streamlit_app_v2.py` | Streamlit layout, staged navigation, upload, session state, validation/cleaning orchestration, dashboard, and insight display. |
 | `frontend/streamlit_app.py` | Original single-page Streamlit prototype retained as an alternate entry point. |
 | `frontend/charts.py` | Altair charts with explicit chronological labels and date tooltips, rendered in Streamlit. |
+| `frontend/inventory_pages.py` | The Inventory upload, check, dashboard, and insights pages, plus the dataset type dropdown. The main app hands over to it when Inventory is selected; both types share session state and step numbers. |
+| `backend/inventory.py` | Inventory validation, recommendations, cleaning, KPIs (value = quantity × unit cost), category/item aggregations, low-stock logic, and insights. |
 | `backend/load_csv.py` | Low-level CSV parsing for a path or file-like input. Selects delimiter and header behavior; leaves sales-schema decisions to its caller. |
-| `backend/csv_loader.py` | Sales-specific layer over `load_csv.py`; assigns required names for headerless sales files, rejects incompatible layouts, and turns empty/unreadable/ragged files into friendly errors. |
+| `backend/csv_loader.py` | Dataset-specific layer over `load_csv.py` (Sales and Inventory); assigns required names for headerless files, rejects incompatible layouts, and turns empty/unreadable/ragged files into friendly errors. |
 | `backend/upload_diagnosis.py` | Detects likely upload-setting mistakes (wrong delimiter, header-only file, first row that looks like data) and names the fix. |
 | `backend/column_mapping.py` | Suggests and applies a mapping from a file's own headers (for example `Revenue`) to the required column names. |
 | `backend/validation.py` | Required-column checks; per-column missing-value counts; amount/date validity masks; duplicate, missing-amount, and currency-format counts. |
 | `backend/recommendations.py` | Builds the recommended actions (count, suggested fix, impact, preview, examples), suggests category spelling corrections, and cleans using only the fixes the user accepted. |
 | `backend/cleaning.py` | Missing-value defaults, numeric amount conversion, date parsing, duplicate removal, and category normalization. |
-| `backend/cleaning_report.py` | Formats the cleaning summary as the plain-text report offered for download. |
+| `backend/cleaning_report.py` | Formats the cleaning summary (Sales or Inventory) as the plain-text report offered for download. |
 | `backend/transformation.py` | KPI calculation, sales grouped by category/date, and category sales distribution. |
 | `backend/insights.py` | Human-readable observations built from KPI and aggregation results. |
 | `data/sales/` | Example and test CSVs for supported and intentionally invalid sales scenarios. |

@@ -3,11 +3,16 @@
 A guided Streamlit app for checking a sales spreadsheet, fixing common data
 issues, and viewing sales totals, charts, and plain-language highlights.
 
-> **Current scope:** Sales Data is the only supported dataset type. CSV files
-> need `date`, `amount`, `category`, and `item` columns. For files without a
-> header row, select the no-header option and provide those four columns in
-> that exact order. This prototype processes data in memory and does not
-> persist uploads to a database.
+> **Current scope:** Two dataset types are supported, chosen from the
+> **Dataset type** dropdown on the upload page. **Sales** needs `date`,
+> `amount`, `category`, and `item` columns. **Inventory** needs `item`,
+> `category`, `quantity`, and `unit_cost` columns, plus optional
+> `reorder_level` (enables low-stock checks) and `last_updated`. Columns with
+> other names can be matched on the check page. For files without a header
+> row, select the no-header option and provide the required columns in that
+> exact order (optional Inventory columns need a header row). Switching the
+> dataset type clears the current upload. This prototype processes data in
+> memory and does not persist uploads to a database.
 
 ## Quick start (Windows)
 
@@ -95,7 +100,8 @@ Run the automated tests from the repository root:
 
 They cover validation and cleaning, recommendations and category suggestions,
 column mapping, upload diagnosis, the cleaning report, dashboard calculations,
-all sales CSV fixtures, and a headless run of the whole app workflow. A
+all sales and inventory CSV fixtures, and headless runs of the whole app
+workflow for both dataset types. A
 separate sample-data smoke check is also available:
 
 ```powershell

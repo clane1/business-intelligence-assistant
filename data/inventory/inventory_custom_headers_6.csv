@@ -1,0 +1,7 @@
+SKU,Department,Qty on Hand,Cost per Unit,Reorder Point
+Laptop,Electronics,12,899.99,5
+Jacket,Clothing,40,59.00,10
+Stapler,Office,3,4.25,25
+Coffee Beans,Food,200,8.40,80
+Board Game,Toys,30,22.00,10
+Mouse,Electronics,40,12.49,15

@@ -23,6 +23,8 @@ be run from the repository root because fixtures use relative paths.
 | `test_cleaning_report.py` | Contents of the downloadable cleaning report. |
 | `test_transformation.py` | KPIs, category and date aggregation, zero-revenue handling, and generated insights. |
 | `test_app_flow.py` | Headless end-to-end workflow through the Streamlit app (check page, apply fixes, dashboard, report, reset, blocked files, every fixture reaching Insights). |
+| `test_inventory.py` | Inventory validation, recommendation cards, accept/reject cleaning, KPIs, charts data, insights, low-stock logic, report, loader, mapping, and every fixture in `data/inventory/`. |
+| `test_inventory_app_flow.py` | Headless Inventory workflow: cards, accept/reject, negative-row removal, dashboard, insights, blocked files, and the dataset type switch resetting state. |
 
 `test_sales_trend.py` in detail: it verifies date parsing, trend interval
 boundaries, explicit
@@ -74,6 +76,19 @@ cases.
 | `sales_no_headers_messy_6.csv` | Headerless six-row file with currency values, inconsistent category case, a missing amount, an invalid date, a negative amount, and a duplicate. |
 | `sales_no_headers_semicolon_4.csv` | Headerless four-row sales file using semicolons. |
 | `sales_no_headers_missing_column_2.csv` | Intentionally invalid headerless file with only three columns. |
+
+### Inventory fixtures (`data/inventory/`)
+
+| File | Scenario |
+| --- | --- |
+| `inventory_clean_20.csv` | Clean file with all six columns and one low-stock item. |
+| `inventory_messy_20.csv` | 2 duplicate rows, a missing quantity and unit cost, a negative quantity and unit cost, misspelled categories (`Electonics`, `Clothng`, `Fodd`), a blank category, and `$`/comma unit costs. |
+| `inventory_minimal_8.csv` | Only the four required columns (no low-stock check). |
+| `inventory_custom_headers_6.csv` | Non-standard headers (`SKU`, `Department`, `Qty on Hand`, `Cost per Unit`, `Reorder Point`); exercises column matching. |
+| `inventory_no_headers_5.csv` | Headerless, four columns. |
+| `inventory_non_numeric_5.csv` | Text in quantity and unit cost; cleaning is blocked until the file is fixed. |
+| `inventory_missing_column_5.csv` | No `unit_cost` column; blocked. |
+| `inventory_zero_value_6.csv` | Every item has zero value; dashboard and insights must not crash or compare shares. |
 
 ## Recorded development verification
 

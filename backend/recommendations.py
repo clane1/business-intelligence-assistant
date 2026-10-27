@@ -148,9 +148,12 @@ def _preview(
         parts = []
         for i in shown:
             value = df.iloc[i][column]
-            parts.append(
-                f"row {i + 1}: {'(blank)' if pd.isna(value) else repr(value)}"
+            shown_value = (
+                "(blank)" if pd.isna(value)
+                else repr(value) if isinstance(value, str)
+                else str(value)
             )
+            parts.append(f"row {i + 1}: {shown_value}")
         text = "; ".join(parts)
 
     if len(positions) > limit:

@@ -104,6 +104,10 @@ from backend.cleaning_report import build_cleaning_report
 from backend.upload_diagnosis import diagnose_upload
 
 from frontend.charts import format_display_date, render_sales_trend
+from frontend.inventory_pages import (
+    dataset_type_selector,
+    render_inventory_workflow,
+)
 
 REVIEW_WIDGET_KEYS = (
     "fix_duplicates",
@@ -278,6 +282,9 @@ if "source_name" not in st.session_state:
 if "cleaning_report" not in st.session_state:
     st.session_state.cleaning_report = None
 
+if "dataset_type" not in st.session_state:
+    st.session_state.dataset_type = "Sales"
+
 # ==========================================
 # WORKFLOW SIDEBAR
 # ==========================================
@@ -385,10 +392,24 @@ with st.sidebar:
         for key in list(st.session_state.keys()):
             if (
                 key in REVIEW_WIDGET_KEYS
-                or key.startswith(("fix_category_", "map_"))
+                or key.startswith(("fix_category_", "map_", "inv_"))
             ):
                 del st.session_state[key]
         st.rerun()
+
+# ==========================================
+# OTHER DATASET TYPES
+# ==========================================
+#
+# Inventory has its own pages (frontend/inventory_pages.py) that reuse the
+# same session state and step numbers. Sales is the default and is handled
+# by the steps below.
+#
+# ==========================================
+
+if st.session_state.dataset_type == "Inventory":
+    render_inventory_workflow()
+    st.stop()
 
 # ==========================================
 # STEP 1 - DATA UPLOAD
@@ -443,7 +464,7 @@ if st.session_state.current_step == 1:
     #
     # --------------------------------------
 
-    st.markdown("**Dataset type:** Sales data")
+    dataset_type_selector()
 
     # --------------------------------------
     # CSV IMPORT SETTINGS
@@ -510,7 +531,8 @@ if st.session_state.current_step == 1:
 
     uploaded_file = st.file_uploader(
         "Choose your sales CSV file",
-        type=["csv"]
+        type=["csv"],
+        key="upload_Sales",
     )
 
     # Upload results appear directly under the
@@ -594,7 +616,7 @@ if st.session_state.current_step == 1:
     st.markdown("### Sales data requirements")
 
     st.info(
-        "Sales data is the only supported type right now. Amounts may include "
+        "Amounts may include "
         "dollar signs and commas. For best results, enter dates in "
         "year-month-day order, like 2024-01-31. Dates the app cannot read "
         "aren't shown in the sales trend or date-related insights, but their "
