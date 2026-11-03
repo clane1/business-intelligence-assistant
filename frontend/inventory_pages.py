@@ -3,8 +3,8 @@
 ``streamlit_app_v2.py`` hands control to :func:`render_inventory_workflow` when
 the user selects the Inventory dataset type. The four steps (upload, check,
 dashboard, insights) mirror the Sales workflow and share its session state
-keys, so the sidebar and "Start New Analysis" work unchanged. The sales code
-path is not touched by this module.
+keys, so the sidebar and "Start New Analysis" work unchanged. Sales-specific
+data handling remains in the main workflow module.
 """
 
 import pandas as pd
@@ -38,7 +38,7 @@ from backend.recommendations import _preview, suggest_category_corrections
 from backend.upload_diagnosis import diagnose_upload
 from backend.validation import count_duplicates, validate_columns, validate_missing
 
-DATASET_TYPES = ["Sales", "Inventory"]
+DATASET_TYPES = ["Sales", "Inventory", "Expenses"]
 NOT_IN_FILE = "(not in my file)"
 APPLY_CORRECTION = "Apply correction"
 KEEP_ORIGINAL = "Keep original value"
@@ -46,7 +46,9 @@ KEEP_NEGATIVES = "Keep these rows (they reduce totals)"
 REMOVE_NEGATIVES = "Remove these rows"
 
 # Widget keys that belong to a dataset's review forms; cleared on a type switch.
-_WIDGET_PREFIXES = ("fix_", "map_", "inv_", "invalid_date_handling")
+_WIDGET_PREFIXES = (
+    "fix_", "map_", "inv_", "exp_", "invalid_date_handling",
+)
 _DATA_KEYS = (
     "raw_df", "clean_df", "cleaning_summary", "source_df", "source_name",
     "cleaning_report", "column_mapping",
@@ -66,12 +68,29 @@ def _units(value: float) -> str:
     return f"{value:,.0f}" if float(value).is_integer() else f"{value:,.2f}"
 
 
+def clear_uploaded_files() -> None:
+    """Invalidate upload widgets so browser-held files are discarded."""
+    generation = st.session_state.get("upload_generation", 0)
+    st.session_state.upload_generation = generation + 1
+    for key in list(st.session_state.keys()):
+        if key.startswith("upload_"):
+            del st.session_state[key]
+
+
+def upload_widget_key(dataset_type: str) -> str:
+    """Return a file-uploader key for the current upload generation."""
+    generation = st.session_state.get("upload_generation", 0)
+    suffix = f"_{generation}" if generation else ""
+    return f"upload_{dataset_type}{suffix}"
+
+
 def _on_type_change() -> None:
     """Start over with the newly selected dataset type."""
     st.session_state.dataset_type = st.session_state.dataset_type_choice
     st.session_state.current_step = 1
     for key in _DATA_KEYS:
         st.session_state[key] = None
+    clear_uploaded_files()
     for key in list(st.session_state.keys()):
         if key.startswith(_WIDGET_PREFIXES):
             del st.session_state[key]
@@ -85,8 +104,8 @@ def dataset_type_selector() -> None:
         index=DATASET_TYPES.index(st.session_state.dataset_type),
         key="dataset_type_choice",
         on_change=_on_type_change,
-        help="Changing this clears the current upload so the two kinds of "
-        "data are never mixed.",
+        help="Changing this clears the current upload so different dataset "
+        "types are never mixed.",
     )
 
 
@@ -130,7 +149,9 @@ def _upload_page() -> None:
         "What separates the columns?", list(_DELIMITERS)
     )
     uploaded_file = st.file_uploader(
-        "Choose your inventory CSV file", type=["csv"], key="upload_Inventory"
+        "Choose your inventory CSV file",
+        type=["csv"],
+        key=upload_widget_key("Inventory"),
     )
     upload_status = st.container()
 

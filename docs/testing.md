@@ -1,4 +1,4 @@
-# Testing and Sales Test Data
+# Testing Sales, Inventory, and Expenses
 
 ## Automated regression tests
 
@@ -23,8 +23,10 @@ be run from the repository root because fixtures use relative paths.
 | `test_cleaning_report.py` | Contents of the downloadable cleaning report. |
 | `test_transformation.py` | KPIs, category and date aggregation, zero-revenue handling, and generated insights. |
 | `test_app_flow.py` | Headless end-to-end workflow through the Streamlit app (check page, apply fixes, dashboard, report, reset, blocked files, every fixture reaching Insights). |
-| `test_inventory.py` | Inventory validation, recommendation cards, accept/reject cleaning, KPIs, charts data, insights, low-stock logic, report, loader, mapping, and every fixture in `data/inventory/`. |
-| `test_inventory_app_flow.py` | Headless Inventory workflow: cards, accept/reject, negative-row removal, dashboard, insights, blocked files, and the dataset type switch resetting state. |
+| `test_inventory.py` | Inventory validation, recommendation cards, accept/reject cleaning, KPIs, charts data, insights, low-stock logic, report, loader, mapping, the 100-row fixtures, and each issue-specific fixture in `data/inventory/`. |
+| `test_inventory_app_flow.py` | Headless Inventory workflow: actual CSV upload, custom-header mapping, cards, accept/reject, negative-row removal, dashboard, insights, blocked files, and the dataset type switch resetting state. |
+| `test_expenses.py` | Expenses CSV loading, custom-header mapping, validation, cleaning choices, reports, KPIs, category/vendor/date analysis, insights, date-only preview formatting, and all fixture scenarios. |
+| `test_expenses_app_flow.py` | Headless Expenses upload, custom-header mapping, cleaning, dashboard, insights, blocked inputs, and dataset switching. |
 
 `test_sales_trend.py` in detail: it verifies date parsing, trend interval
 boundaries, explicit
@@ -81,6 +83,13 @@ cases.
 
 | File | Scenario |
 | --- | --- |
+| `inventory_clean_100.csv` | One hundred clean rows with required and optional columns. |
+| `inventory_messy_100.csv` | One hundred rows with duplicates, missing and negative numbers, category typos, a blank category, and formatted cost. |
+| `inventory_negative_quantity.csv` | One negative quantity with otherwise valid rows. |
+| `inventory_missing_cost.csv` | One missing unit cost with otherwise valid rows. |
+| `inventory_missing_quantity.csv` | One missing quantity with otherwise valid rows. |
+| `inventory_duplicates.csv` | Two repeated rows for duplicate detection and removal. |
+| `inventory_low_stock.csv` | Items below, at, and above reorder levels. |
 | `inventory_clean_20.csv` | Clean file with all six columns and one low-stock item. |
 | `inventory_messy_20.csv` | 2 duplicate rows, a missing quantity and unit cost, a negative quantity and unit cost, misspelled categories (`Electonics`, `Clothng`, `Fodd`), a blank category, and `$`/comma unit costs. |
 | `inventory_minimal_8.csv` | Only the four required columns (no low-stock check). |
@@ -90,25 +99,33 @@ cases.
 | `inventory_missing_column_5.csv` | No `unit_cost` column; blocked. |
 | `inventory_zero_value_6.csv` | Every item has zero value; dashboard and insights must not crash or compare shares. |
 
+### Expenses fixtures (`data/expenses/`)
+
+| File | Scenario |
+| --- | --- |
+| `expenses_clean_100.csv` | One hundred clean rows for KPI, dashboard, and analysis coverage. |
+| `expenses_messy_100.csv` | One hundred rows with duplicates, missing amounts, category typos, unreadable dates, and formatted amounts. |
+| `expenses_custom_headers.csv` | Non-standard transaction, amount, category, and supplier headers for column mapping. |
+| `expenses_duplicates.csv` | Repeated expense row for duplicate detection and removal. |
+| `expenses_invalid_amount.csv` | Non-numeric amount that blocks cleaning. |
+| `expenses_missing_amount.csv` | Missing amount for accept/reject fill behavior. |
+| `expenses_missing_column.csv` | Missing required `vendor` column. |
+| `expenses_no_headers.csv` | Headerless four-column expenses file. |
+| `expenses_zero_total.csv` | Zero-amount rows for safe KPI and category-share handling. |
+
 ## Recorded development verification
 
-On October 19, 2026, all fourteen automated regression tests passed. All
-fifteen bundled sales CSV files were run through the configured sales loader
-and validation checks. The ten ordinary/headered fixtures loaded with the
-expected schema except `sales_missing_amount_2.csv`, which correctly reported
-the missing `amount` column. The three valid headerless fixtures loaded with
-the expected four columns, and the malformed three-column headerless fixture
-was rejected with its actual column count and the required order. Intentional
-data-quality cases reported their empty-cell, invalid-date, duplicate, and
-currency-format counts.
+On November 2, 2026, the full automated regression suite passed all 170 tests.
+Coverage includes the Sales, Inventory, and Expenses workflow screens,
+dataset-specific loaders and mappings, cleaning choices and reports,
+dashboards, insights, date-only cleaned previews, and the bundled fixture
+scenarios. The separate Sales pipeline smoke check also completed
+successfully. These checks are automated development verification; they are
+not a browser-based usability study or evidence of business impact.
 
-Streamlit UI tests confirmed that the missing-column screen names `amount`,
-explains that the CSV must be corrected and uploaded again, and returns to the
-upload step. They also confirmed that unreadable dates and non-numeric amounts
-show example values and one-based CSV data-row numbers, and that non-numeric
-amounts block cleaning. The sample pipeline smoke check is available above;
-rerun it alongside the regression suite after changes to loading, cleaning,
-transformations, charting, or insight generation.
+Rerun the regression suite and smoke check after changes to loading, cleaning,
+transformations, charting, or insight generation. Update this record with the
+test date and results when verification is repeated.
 
 ## Suggested manual evaluation procedure
 
@@ -177,3 +194,51 @@ For a final project evaluation, record the Python and package versions, test
 date, observed outcomes, and any user-study results. Fixture tests check
 technical behavior; they do not, by themselves, establish usability for a
 broad user population.
+
+## Suggested manual Inventory evaluation
+
+For Inventory, select **Inventory** in the **Dataset type** dropdown and try:
+
+1. Upload `inventory_clean_100.csv`. Confirm it reaches the checks page without
+   recommendations, then continue to the dashboard and insights.
+2. Upload `inventory_messy_100.csv`. Review duplicate, missing-value, negative
+   number, and category recommendations. Accept and reject choices, and check
+   that the cleaning report reflects the decisions.
+3. Upload each issue-specific fixture. Confirm negative quantities are kept
+   unless removal is chosen, missing quantities and costs can be filled
+   independently, duplicate rows are reported, and low-stock detection
+   includes quantities at or below reorder levels.
+4. Upload `inventory_custom_headers_6.csv`. Confirm the suggested header
+   matches are correct and that applying the mapping allows cleaning.
+5. Upload `inventory_non_numeric_5.csv` and `inventory_missing_column_5.csv`.
+   Confirm each blocks cleaning and offers **Back to Upload Data**.
+6. Upload `inventory_minimal_8.csv` and `inventory_zero_value_6.csv`. Confirm
+   the missing optional reorder-level column disables low-stock checks and
+   zero-value data renders without invalid comparisons.
+
+The headless AppTest suite exercises the upload page, custom-header mapping,
+recommended actions, cleaning, dashboard, insights, blocked-input cases, and
+the dataset-type reset. This manual procedure is an additional visual check,
+not a substitute for automated tests.
+
+## Suggested manual Expenses evaluation
+
+Select **Expenses** from the **Dataset type** dropdown and try:
+
+1. Upload `expenses_clean_100.csv`, continue through checks, dashboard, and
+   insights, and verify the four requested KPI cards.
+2. Upload `expenses_messy_100.csv`. Review duplicate, missing amount, invalid
+   date, and category-correction recommendations; accept and reject choices,
+   then verify the cleaning report.
+3. Upload `expenses_custom_headers.csv` and confirm that the transaction date,
+   expense amount, department, and supplier headers are suggested and can be
+   applied.
+4. Upload `expenses_invalid_amount.csv` and `expenses_missing_column.csv`.
+   Confirm non-numeric amounts and missing required fields block cleaning and
+   provide a route back to upload.
+5. Upload `expenses_zero_total.csv` and confirm no invalid share comparison is
+   shown. Use `expenses_no_headers.csv` with the header option off and check
+   that the required four-column order is assigned.
+6. On the dashboard, check that cleaned preview dates display as calendar
+   dates without `00:00:00`; downloaded CSV values remain suitable for data
+   processing.

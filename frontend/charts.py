@@ -17,9 +17,24 @@ def format_display_date(value: pd.Timestamp) -> str:
     return f"{value:%B} {value.day}, {value.year}"
 
 
-def build_sales_trend_chart(
+def format_cleaned_preview(df: pd.DataFrame) -> pd.DataFrame:
+    """Return a display copy with parsed dates shown without midnight times."""
+    preview = df.head(10).copy()
+    if "date" in preview.columns:
+        preview["date"] = preview["date"].map(
+            lambda value: (
+                format_display_date(pd.Timestamp(value))
+                if pd.notna(value)
+                else "Not available"
+            )
+        )
+    return preview
+
+
+def build_time_trend_chart(
     trend_df: pd.DataFrame,
     frequency: str,
+    value_label: str,
 ) -> alt.Chart:
     """Build a chronological trend chart with explicit period labels.
 
@@ -75,16 +90,36 @@ def build_sales_trend_chart(
                     values=axis_values,
                 ),
             ),
-            y=alt.Y("amount:Q", title="Sales"),
+            y=alt.Y("amount:Q", title=value_label),
             tooltip=[
                 alt.Tooltip(
                     "tooltip_period:N",
                     title=tooltip_title,
                 ),
-                alt.Tooltip("amount:Q", title="Sales", format="$,.2f"),
+                alt.Tooltip(
+                    "amount:Q",
+                    title=value_label,
+                    format="$,.2f",
+                ),
             ],
         )
     )
+
+
+def build_sales_trend_chart(
+    trend_df: pd.DataFrame,
+    frequency: str,
+) -> alt.Chart:
+    """Build the Sales-specific time-trend chart."""
+    return build_time_trend_chart(trend_df, frequency, "Sales")
+
+
+def build_expenses_trend_chart(
+    trend_df: pd.DataFrame,
+    frequency: str,
+) -> alt.Chart:
+    """Build the Expenses-specific time-trend chart."""
+    return build_time_trend_chart(trend_df, frequency, "Expenses")
 
 
 def render_sales_trend(
@@ -98,4 +133,13 @@ def render_sales_trend(
         frequency: One of ``day``, ``week``, or ``month``.
     """
     chart = build_sales_trend_chart(trend_df, frequency)
+    st.altair_chart(chart, width="stretch")
+
+
+def render_expenses_trend(
+    trend_df: pd.DataFrame,
+    frequency: str,
+) -> None:
+    """Render the Expenses time-trend chart."""
+    chart = build_expenses_trend_chart(trend_df, frequency)
     st.altair_chart(chart, width="stretch")

@@ -37,6 +37,7 @@ from backend.inventory import (
 )
 from backend.recommendations import suggest_category_corrections
 from backend.upload_diagnosis import diagnose_upload
+from backend.validation import count_duplicates
 
 DATA = Path(__file__).resolve().parents[1] / "data" / "inventory"
 
@@ -485,7 +486,48 @@ class InventoryFixtureTests(unittest.TestCase):
     CUSTOM = {"inventory_custom_headers_6.csv"}
 
     def test_every_fixture_is_covered_by_a_known_scenario(self) -> None:
-        self.assertEqual(len(list(DATA.glob("*.csv"))), 8)
+        self.assertEqual(len(list(DATA.glob("*.csv"))), 15)
+
+    def test_100_row_clean_fixture_has_no_recommendations(self) -> None:
+        df = load("inventory_clean_100.csv")
+
+        self.assertEqual(len(df), 100)
+        self.assertEqual(build_inventory_recommendations(df), [])
+        self.assertEqual(suggest_category_corrections(df), [])
+
+    def test_100_row_messy_fixture_covers_multiple_issues(self) -> None:
+        df = load("inventory_messy_100.csv")
+
+        self.assertEqual(len(df), 100)
+        self.assertEqual(count_duplicates(df), 2)
+        self.assertEqual(count_missing(df, "quantity"), 1)
+        self.assertEqual(count_missing(df, "unit_cost"), 1)
+        self.assertEqual(count_negative(df, "quantity"), 1)
+        self.assertEqual(count_negative(df, "unit_cost"), 1)
+        self.assertEqual(count_currency_symbols(df), 1)
+
+        cleaned, summary = clean_inventory(df, InventoryChoices())
+
+        self.assertEqual(summary["duplicates_removed"], 2)
+        self.assertEqual(summary["category_rows_removed"], 1)
+        self.assertEqual(len(cleaned), 97)
+        self.assertTrue(generate_inventory_insights(cleaned))
+
+    def test_issue_specific_fixtures_are_detected(self) -> None:
+        self.assertEqual(
+            count_negative(load("inventory_negative_quantity.csv"), "quantity"),
+            1,
+        )
+        self.assertEqual(
+            count_missing(load("inventory_missing_cost.csv"), "unit_cost"),
+            1,
+        )
+        self.assertEqual(
+            count_missing(load("inventory_missing_quantity.csv"), "quantity"),
+            1,
+        )
+        self.assertEqual(count_duplicates(load("inventory_duplicates.csv")), 2)
+        self.assertEqual(low_stock_item_count(load("inventory_low_stock.csv")), 3)
 
     def test_every_usable_fixture_cleans_and_produces_insights(self) -> None:
         for path in sorted(DATA.glob("*.csv")):

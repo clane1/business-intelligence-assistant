@@ -1,0 +1,101 @@
+date,amount,category,vendor
+2026-01-04,7.75,Office Supplies,Acme Office
+2026-01-07,13.00,Travel,Northstar Travel
+2026-01-10,18.25,Software,Example Cloud
+2026-01-13,23.50,Utilities,City Power
+not-a-date,28.75,Office Supplies,Acme Office
+2026-01-19,"$1,250.00",Travel,Northstar Travel
+2026-01-22,39.25,Software,Example Cloud
+2026-01-25,44.50,Utilities,City Power
+2026-01-28,,Office Supplies,Acme Office
+2026-01-31,55.00,Travel,Northstar Travel
+2026-02-03,60.25,Software,Example Cloud
+2026-02-06,65.50,Utilities,City Power
+2026-02-09,70.75,Office Supplies,Acme Office
+2026-02-12,76.00,Travel,Northstar Travel
+2026-02-15,81.25,Software,Example Cloud
+2026-02-18,86.50,Utilities,City Power
+2026-02-21,91.75,Office Supplies,Acme Office
+2026-02-24,97.00,Travel,Northstar Travel
+2026-02-27,102.25,Office Supllies,Example Cloud
+2026-03-02,107.50,Utilities,City Power
+2026-03-05,112.75,Office Supplies,Acme Office
+2026-03-08,118.00,Travel,Northstar Travel
+2026-03-11,123.25,Software,Example Cloud
+2026-03-14,128.50,Utilities,City Power
+2026-03-17,133.75,Office Supplies,Acme Office
+2026-03-20,139.00,Travel,Northstar Travel
+2026-03-23,144.25,Software,Example Cloud
+2026-03-26,149.50,Utilities,City Power
+2026-03-29,154.75,Travel,Acme Office
+2026-01-01,160.00,Travel,Northstar Travel
+2026-01-04,165.25,Software,Example Cloud
+2026-01-07,170.50,Utilities,City Power
+2026-01-10,175.75,Office Supplies,Acme Office
+2026-01-13,181.00,Travel,Northstar Travel
+2026-01-16,186.25,Software,Example Cloud
+2026-01-19,191.50,Utilities,City Power
+2026-01-22,196.75,Office Supplies,Acme Office
+2026-01-25,202.00,Travel,Northstar Travel
+2026-01-28,207.25,Software,"  Acme Office  "
+2026-01-31,212.50,Utilities,City Power
+2026-02-03,217.75,Office Supplies,Acme Office
+2026-02-06,223.00,Travel,Northstar Travel
+2026-02-09,228.25,Software,Example Cloud
+2026-02-12,233.50,Utilities,City Power
+2026-02-15,238.75,Office Supplies,Acme Office
+2026-02-18,244.00,Travel,Northstar Travel
+2026-02-21,249.25,Software,Example Cloud
+2026-02-24,254.50,Utilities,City Power
+2026-02-27,"$1,250.00",Office Supplies,Acme Office
+2026-03-02,265.00,Travel,Northstar Travel
+2026-03-05,270.25,Software,Example Cloud
+2026-03-08,275.50,Utilities,City Power
+2026-03-11,280.75,Office Supplies,Acme Office
+2026-03-14,286.00,Travel,Northstar Travel
+2026-03-17,291.25,Software,Example Cloud
+2026-03-20,296.50,Utilities,City Power
+2026-03-23,301.75,Office Supplies,Acme Office
+2026-03-26,307.00,Travel,Northstar Travel
+2026-03-29,312.25,Software,Example Cloud
+2026-01-01,317.50,Utilities,City Power
+2026-01-04,322.75,Office Supplies,Acme Office
+2026-01-07,328.00,Travel,Northstar Travel
+2026-01-10,333.25,Software,Example Cloud
+2026-01-13,338.50,Utilities,City Power
+2026-01-16,343.75,Office Supplies,Acme Office
+2026-01-19,349.00,Travel,Northstar Travel
+2026-01-22,354.25,Software,Example Cloud
+2026-01-25,359.50,Utilities,City Power
+2026-01-28,364.75,Office Supplies,Acme Office
+2026-01-31,370.00,Travel,Northstar Travel
+2026-02-03,375.25,Software,Example Cloud
+2026-02-06,380.50,Utilities,City Power
+2026-02-09,385.75,Office Supplies,Acme Office
+2026-02-12,391.00,Travel,Northstar Travel
+2026-02-15,396.25,Software,Example Cloud
+2026-02-18,401.50,Utilities,City Power
+2026-02-21,406.75,Office Supplies,Acme Office
+2026-02-24,412.00,Travel,Northstar Travel
+2026-02-27,417.25,Software,Example Cloud
+2026-03-02,422.50,Utilities,City Power
+2026-03-05,427.75,Office Supplies,Acme Office
+2026-03-08,433.00,Travel,Northstar Travel
+2026-03-11,438.25,Software,Example Cloud
+2026-03-14,443.50,Utilities,City Power
+2026-03-17,448.75,Office Supplies,Acme Office
+2026-03-20,454.00,Travel,Northstar Travel
+2026-03-23,459.25,Software,Example Cloud
+2026-03-26,464.50,Utilities,City Power
+2026-03-29,469.75,Office Supplies,Acme Office
+2026-01-01,475.00,Travel,Northstar Travel
+2026-01-04,480.25,Software,Example Cloud
+2026-01-07,485.50,Utilities,City Power
+2026-01-10,490.75,Office Supplies,Acme Office
+2026-01-13,496.00,Travel,Northstar Travel
+2026-01-16,501.25,Software,Example Cloud
+2026-01-19,506.50,Utilities,City Power
+2026-01-22,511.75,Office Supplies,Acme Office
+2026-01-25,517.00,Travel,Northstar Travel
+2026-01-04,7.75,Office Supplies,Acme Office
+2026-01-07,13.00,Travel,Northstar Travel

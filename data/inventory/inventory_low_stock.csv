@@ -1,0 +1,5 @@
+item,category,quantity,unit_cost,reorder_level,last_updated
+Widget A,Electronics,4,12.50,5,2026-03-01
+Widget B,Office,5,4.50,5,2026-03-02
+Widget C,Food,6,3.25,5,2026-03-03
+Widget D,Clothing,0,9.99,0,2026-03-04

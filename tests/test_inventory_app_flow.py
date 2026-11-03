@@ -32,6 +32,15 @@ def open_check_page(csv_name: str) -> AppTest:
     return at
 
 
+def open_inventory_upload_page() -> AppTest:
+    """Start the app with Inventory selected on its upload page."""
+    at = AppTest.from_file(APP, default_timeout=60)
+    at.run()
+    at.selectbox(key="dataset_type_choice").set_value("Inventory")
+    at.run()
+    return at
+
+
 def button(at: AppTest, prefix: str):
     matches = [b for b in at.button if b.label.startswith(prefix)]
     return matches[0] if matches else None
@@ -41,6 +50,46 @@ class InventoryAppFlowTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         warnings.simplefilter("ignore")
+
+    def test_inventory_upload_accepts_csv_and_opens_checks(self) -> None:
+        at = open_inventory_upload_page()
+        self.assertFalse(at.exception)
+        self.assertTrue(at.file_uploader(key="upload_Inventory"))
+
+        csv_name = "inventory_clean_20.csv"
+        at.file_uploader(key="upload_Inventory").upload(
+            csv_name, (INVENTORY / csv_name).read_bytes(), "text/csv"
+        )
+        at.run()
+
+        self.assertFalse(at.exception)
+        self.assertIsNotNone(button(at, "Continue to data checks"))
+        button(at, "Continue to data checks").click()
+        at.run()
+
+        self.assertFalse(at.exception)
+        self.assertEqual(at.session_state["current_step"], 2)
+        self.assertEqual(at.session_state["source_name"], csv_name)
+
+    def test_inventory_upload_mapping_uses_custom_headers(self) -> None:
+        at = open_inventory_upload_page()
+        csv_name = "inventory_custom_headers_6.csv"
+        at.file_uploader(key="upload_Inventory").upload(
+            csv_name, (INVENTORY / csv_name).read_bytes(), "text/csv"
+        )
+        at.run()
+        button(at, "Continue to data checks").click()
+        at.run()
+
+        self.assertEqual(at.selectbox(key="map_item").value, "SKU")
+        self.assertEqual(at.selectbox(key="map_quantity").value, "Qty on Hand")
+        button(at, "Use these columns").click()
+        at.run()
+
+        self.assertFalse(at.exception)
+        self.assertIsNotNone(at.session_state["column_mapping"])
+        self.assertIn("item", at.session_state["raw_df"].columns)
+        self.assertIn("quantity", at.session_state["raw_df"].columns)
 
     def test_messy_file_shows_cards_then_dashboard_and_report(self) -> None:
         at = open_check_page("inventory_messy_20.csv")
@@ -149,10 +198,14 @@ class InventoryAppFlowTests(unittest.TestCase):
         self.assertIsNone(at.session_state["clean_df"])
 
     def test_switching_dataset_type_resets_to_upload(self) -> None:
-        at = open_check_page("inventory_messy_20.csv")
-
-        at.session_state["current_step"] = 1
+        at = open_inventory_upload_page()
+        csv_name = "inventory_clean_20.csv"
+        at.file_uploader(key="upload_Inventory").upload(
+            csv_name, (INVENTORY / csv_name).read_bytes(), "text/csv"
+        )
         at.run()
+        self.assertIn("upload_Inventory", at.session_state)
+
         at.selectbox(key="dataset_type_choice").set_value("Sales")
         at.run()
 
@@ -160,6 +213,8 @@ class InventoryAppFlowTests(unittest.TestCase):
         self.assertEqual(at.session_state["dataset_type"], "Sales")
         self.assertEqual(at.session_state["current_step"], 1)
         self.assertIsNone(at.session_state["raw_df"])
+        self.assertNotIn("upload_Inventory", at.session_state)
+        self.assertIsNone(button(at, "Continue to data checks"))
 
     def test_sales_is_the_default_dataset_type(self) -> None:
         at = AppTest.from_file(APP, default_timeout=60)

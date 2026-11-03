@@ -12,6 +12,7 @@ from backend.load_csv import CsvSource, load_csv
 
 SALES_COLUMNS = ["date", "amount", "category", "item"]
 INVENTORY_COLUMNS = ["item", "category", "quantity", "unit_cost"]
+EXPENSES_COLUMNS = ["date", "amount", "category", "vendor"]
 
 _NUMBER_WORDS = {2: "two", 3: "three", 4: "four", 5: "five", 6: "six"}
 
@@ -65,6 +66,22 @@ def load_inventory_csv(
         headers_included=headers_included,
         columns=INVENTORY_COLUMNS,
         label="inventory",
+    )
+
+
+def load_expenses_csv(
+    source: CsvSource,
+    *,
+    delimiter: str,
+    headers_included: bool,
+) -> pd.DataFrame:
+    """Read an expenses CSV and assign required names to headerless files."""
+    return load_dataset_csv(
+        source,
+        delimiter=delimiter,
+        headers_included=headers_included,
+        columns=EXPENSES_COLUMNS,
+        label="expenses",
     )
 
 

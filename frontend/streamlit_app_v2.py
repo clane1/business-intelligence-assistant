@@ -78,14 +78,6 @@ from backend.validation import (
     invalid_date_mask,
 )
 
-from backend.cleaning import (
-    clean_missing,
-    clean_types,
-    clean_dates,
-    clean_duplicates,
-    normalize_categories
-)
-
 from backend.recommendations import (
     CleaningChoices,
     build_recommendations,
@@ -103,11 +95,18 @@ from backend.cleaning_report import build_cleaning_report
 
 from backend.upload_diagnosis import diagnose_upload
 
-from frontend.charts import format_display_date, render_sales_trend
+from frontend.charts import (
+    format_cleaned_preview,
+    format_display_date,
+    render_sales_trend,
+)
 from frontend.inventory_pages import (
+    clear_uploaded_files,
     dataset_type_selector,
     render_inventory_workflow,
+    upload_widget_key,
 )
+from frontend.expenses_pages import render_expenses_workflow
 
 REVIEW_WIDGET_KEYS = (
     "fix_duplicates",
@@ -389,10 +388,13 @@ with st.sidebar:
         st.session_state.source_name = None
         st.session_state.cleaning_report = None
         st.session_state.column_mapping = None
+        clear_uploaded_files()
         for key in list(st.session_state.keys()):
             if (
                 key in REVIEW_WIDGET_KEYS
-                or key.startswith(("fix_category_", "map_", "inv_"))
+                or key.startswith(
+                    ("fix_category_", "map_", "inv_", "exp_")
+                )
             ):
                 del st.session_state[key]
         st.rerun()
@@ -401,14 +403,17 @@ with st.sidebar:
 # OTHER DATASET TYPES
 # ==========================================
 #
-# Inventory has its own pages (frontend/inventory_pages.py) that reuse the
-# same session state and step numbers. Sales is the default and is handled
-# by the steps below.
+# Inventory and Expenses have their own page modules and share workflow
+# session state and step numbers. Sales remains the default workflow below.
 #
 # ==========================================
 
 if st.session_state.dataset_type == "Inventory":
     render_inventory_workflow()
+    st.stop()
+
+if st.session_state.dataset_type == "Expenses":
+    render_expenses_workflow()
     st.stop()
 
 # ==========================================
@@ -454,13 +459,7 @@ if st.session_state.current_step == 1:
     # Allows users to specify what kind of
     # business dataset is being analysed.
     #
-    # Currently:
-    #     Sales Data is supported
-    #
-    # Future versions may support:
-    #     Inventory Data
-    #     Expense Data
-    #     Customer Data
+    #     Sales, Inventory, and Expenses use their dataset-specific workflows.
     #
     # --------------------------------------
 
@@ -532,7 +531,7 @@ if st.session_state.current_step == 1:
     uploaded_file = st.file_uploader(
         "Choose your sales CSV file",
         type=["csv"],
-        key="upload_Sales",
+        key=upload_widget_key("Sales"),
     )
 
     # Upload results appear directly under the
@@ -1229,16 +1228,8 @@ if st.session_state.current_step == 3:
             )
 
     st.subheader("Cleaned Dataset Preview")
-    cleaned_preview = df.head(10).copy()
-    cleaned_preview["date"] = cleaned_preview["date"].map(
-        lambda date: (
-            format_display_date(date)
-            if pd.notna(date)
-            else "Not available"
-        )
-    )
     st.dataframe(
-        cleaned_preview,
+        format_cleaned_preview(df),
         use_container_width=True
     )
 

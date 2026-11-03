@@ -31,15 +31,20 @@ def _amounts_line(summary: dict) -> str:
     )
 
 
-def _dates_line(summary: dict) -> str:
+def _dates_line(summary: dict, dataset_label: str = "sales") -> str:
     invalid = summary["invalid_dates"]
     if not invalid:
         return "Invalid dates: none found"
     if summary.get("date_rows_removed"):
         return f"Invalid dates: {invalid} found, rows removed"
+    trend_label = {"sales": "sales", "expenses": "expense"}.get(
+        dataset_label,
+        dataset_label,
+    )
     return (
-        f"Invalid dates: {invalid} found, kept but excluded from sales "
-        "trends and date-based insights (amounts still count in totals)"
+        f"Invalid dates: {invalid} found, kept but excluded from "
+        f"{trend_label} trends and date-based insights "
+        "(amounts still count in totals)"
     )
 
 
@@ -49,8 +54,9 @@ def build_cleaning_report(
     source_name: str | None = None,
     column_mapping: dict | None = None,
     generated_at: datetime | None = None,
+    dataset_label: str = "sales",
 ) -> str:
-    """Return the cleaning report text.
+    """Return the cleaning report text for Sales or a similar amount dataset.
 
     Args:
         summary: The dictionary returned by ``clean_with_choices``.
@@ -58,13 +64,14 @@ def build_cleaning_report(
         column_mapping: Required column -> file column, when the user matched
             columns; omitted from the report when ``None``.
         generated_at: Report timestamp; defaults to the current time.
+        dataset_label: Dataset name used in the title and invalid-date summary.
     """
     generated_at = generated_at or datetime.now()
     rows_before = summary["rows_before"]
     rows_after = summary["rows_after"]
 
     lines = [
-        "Cleaning Report",
+        f"{dataset_label.title()} Cleaning Report",
         _RULE,
         f"Generated: {generated_at:%Y-%m-%d %H:%M}",
     ]
@@ -90,7 +97,7 @@ def build_cleaning_report(
         "What was changed",
         f"  {_duplicates_line(summary)}",
         f"  {_amounts_line(summary)}",
-        f"  {_dates_line(summary)}",
+        f"  {_dates_line(summary, dataset_label)}",
     ]
 
     currency = summary.get("currency_values_converted", 0)
@@ -126,6 +133,23 @@ def build_cleaning_report(
         "",
     ]
     return "\n".join(lines)
+
+
+def build_expenses_report(
+    summary: dict,
+    *,
+    source_name: str | None = None,
+    column_mapping: dict | None = None,
+    generated_at: datetime | None = None,
+) -> str:
+    """Return the Expenses cleaning report."""
+    return build_cleaning_report(
+        summary,
+        source_name=source_name,
+        column_mapping=column_mapping,
+        generated_at=generated_at,
+        dataset_label="expenses",
+    )
 
 
 def _inventory_fill_line(label: str, found: int, filled: int) -> str:
@@ -255,4 +279,3 @@ def build_inventory_report(
         "",
     ]
     return "\n".join(lines)
-

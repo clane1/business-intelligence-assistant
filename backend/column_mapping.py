@@ -5,7 +5,7 @@ from difflib import SequenceMatcher
 
 import pandas as pd
 
-from backend.csv_loader import INVENTORY_COLUMNS, SALES_COLUMNS
+from backend.csv_loader import EXPENSES_COLUMNS, INVENTORY_COLUMNS, SALES_COLUMNS
 
 INVENTORY_OPTIONAL_COLUMNS = ["reorder_level", "last_updated"]
 
@@ -53,6 +53,25 @@ INVENTORY_COLUMN_ALIASES = {
     "last_updated": {
         "lastupdated", "updated", "lastupdate", "dateupdated", "lastcounted",
         "updatedat", "date",
+    },
+}
+
+EXPENSES_COLUMN_ALIASES = {
+    "date": {
+        "date", "transactiondate", "expensedate", "purchasedate",
+        "invoicedate", "paymentdate", "timestamp", "day",
+    },
+    "amount": {
+        "amount", "expense", "expenses", "expenseamount", "cost", "total",
+        "totalamount", "payment", "value",
+    },
+    "category": {
+        "category", "department", "expensecategory", "type", "group",
+        "classification",
+    },
+    "vendor": {
+        "vendor", "supplier", "merchant", "payee", "provider", "business",
+        "company",
     },
 }
 
@@ -126,6 +145,15 @@ def suggest_inventory_mapping(columns: list) -> dict[str, str | None]:
         columns,
         INVENTORY_COLUMNS + INVENTORY_OPTIONAL_COLUMNS,
         INVENTORY_COLUMN_ALIASES,
+    )
+
+
+def suggest_expenses_mapping(columns: list) -> dict[str, str | None]:
+    """Suggest mappings for the required Expenses columns."""
+    return suggest_mapping(
+        columns,
+        EXPENSES_COLUMNS,
+        EXPENSES_COLUMN_ALIASES,
     )
 
 
