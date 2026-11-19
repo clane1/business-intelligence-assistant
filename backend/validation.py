@@ -56,7 +56,7 @@ def validate_types(df: pd.DataFrame) -> dict:
 
 
 def invalid_amount_mask(df: pd.DataFrame) -> pd.Series:
-    """Return a mask for non-empty amount values that cannot be parsed.
+    """Return a mask for non-empty amounts that are not finite numbers.
 
     Currency symbols and thousands separators supported by cleaning do not
     count as invalid. The DataFrame must contain an ``amount`` column.
@@ -74,7 +74,7 @@ def invalid_amount_mask(df: pd.DataFrame) -> pd.Series:
     return (
         raw_amounts.notna()
         & amount_text.ne("")
-        & numeric_amounts.isna()
+        & (numeric_amounts.isna() | numeric_amounts.isin([float("inf"), float("-inf")]))
     )
 
 

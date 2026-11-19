@@ -113,7 +113,8 @@ from frontend.charts import render_sales_forecast, render_sales_trend
 from backend.validation import (
     validate_columns,
     validate_missing,
-    validate_types
+    validate_types,
+    invalid_amount_mask,
 )
 
 # ==========================================
@@ -310,6 +311,13 @@ if uploaded_file is not None:
         st.json(type_issues)
     else:
         st.write("No type issues detected.")
+
+    if invalid_amount_mask(df).any():
+        st.error(
+            "Some amounts are not finite numbers. Correct or remove those "
+            "values in the CSV, then upload the corrected file."
+        )
+        st.stop()
 
     # --------------------------------------
     # CLEANING PIPELINE

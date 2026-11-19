@@ -23,6 +23,7 @@ be run from the repository root because fixtures use relative paths.
 | `test_cleaning_report.py` | Contents of the downloadable cleaning report. |
 | `test_transformation.py` | KPIs, category and date aggregation, zero-revenue handling, and generated insights. |
 | `test_forecasting.py` | Daily totals and the 30-day horizon across clean, messy, returns, yearly, single-category, and zero-revenue Sales fixtures; calendar offsets, insufficient data, forecast directions, chart series, and both Sales dashboards. |
+| `test_all_fixture_workflows.py` | Actual upload and guided workflow for all 41 bundled CSVs, expected invalid-file blocks, header and delimiter options, column mappings, downloads, and non-finite numeric edge cases. |
 | `test_app_flow.py` | Headless end-to-end workflow through the Streamlit app (check page, apply fixes, dashboard, report, reset, blocked files, every fixture reaching Insights). |
 | `test_inventory.py` | Inventory validation, recommendation cards, accept/reject cleaning, KPIs, charts data, insights, low-stock logic, report, loader, mapping, the 100-row fixtures, and each issue-specific fixture in `data/inventory/`. |
 | `test_inventory_app_flow.py` | Headless Inventory workflow: actual CSV upload, custom-header mapping, cards, accept/reject, negative-row removal, dashboard, insights, blocked files, and the dataset type switch resetting state. |
@@ -116,12 +117,16 @@ cases.
 
 ## Recorded development verification
 
-On November 2, 2026, the full automated regression suite passed all 170 tests.
+On November 19, 2026, the full automated regression suite passed all 182 tests
+using Python 3.14.7, pandas 3.0.6, Streamlit 1.66.0, Altair 6.3.0, and
+scikit-learn 1.9.1.
 Coverage includes the Sales, Inventory, and Expenses workflow screens,
 dataset-specific loaders and mappings, cleaning choices and reports,
 dashboards, insights, date-only cleaned previews, and the bundled fixture
-scenarios. The separate Sales pipeline smoke check also completed
-successfully. These checks are automated development verification; they are
+scenarios. The fixture workflow matrix uploads all 41 supplied CSVs and checks
+the expected blocked or completed workflow, while additional cases cover
+infinite values and the optional inventory reorder level. The separate Sales
+pipeline smoke check also completed successfully. These checks are automated development verification; they are
 not a browser-based usability study or evidence of business impact.
 
 Rerun the regression suite and smoke check after changes to loading, cleaning,

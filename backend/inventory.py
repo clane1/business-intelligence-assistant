@@ -30,18 +30,19 @@ NUMERIC_COLUMNS = ["quantity", "unit_cost"]
 # ----------------------------------------------------------------------
 
 def _numeric_text(series: pd.Series) -> pd.Series:
-    """Parse text such as ``"$1,200.50"`` into numbers; unreadable becomes NaN."""
+    """Parse finite numbers such as ``"$1,200.50"``; invalid values become NaN."""
     text = (
         series.astype("string")
         .str.replace("$", "", regex=False)
         .str.replace(",", "", regex=False)
         .str.strip()
     )
-    return pd.to_numeric(text, errors="coerce").astype("float64")
+    values = pd.to_numeric(text, errors="coerce").astype("float64")
+    return values.mask(values.isin([float("inf"), float("-inf")]))
 
 
 def invalid_number_mask(df: pd.DataFrame, column: str) -> pd.Series:
-    """Mask non-empty values in ``column`` that cannot be read as numbers.
+    """Mask non-empty values in ``column`` that are not finite numbers.
 
     Dollar signs and thousands separators are accepted, as cleaning removes
     them. Empty cells are not invalid; they are reported as missing.

@@ -16,7 +16,7 @@ plain-language highlights.
 
 ## Quick start (Windows)
 
-Install Python 3.10 or newer, then double-click `run_app.bat` from File
+Install Python 3.11 or newer, then double-click `run_app.bat` from File
 Explorer, or run it from the repository root:
 
 ```powershell
@@ -82,7 +82,7 @@ checks this schema and provides upload-specific format errors.
 
 The app can clean amounts that contain dollar signs or commas, fill supported
 empty cells, remove repeated rows, and make category names consistent.
-Non-numeric, non-empty amount values cannot be cleaned automatically; the
+Non-numeric or infinite, non-empty amount values cannot be cleaned automatically; the
 validation screen reports example values and CSV data-row numbers so they can
 be corrected before cleaning. Unreadable dates are reported with example
 values and data-row numbers, then excluded from date-based charts and insights;
@@ -94,6 +94,7 @@ The Sales dashboard also shows a 30-day linear-regression forecast of daily
 sales, with a matching insight on the insights page and in its download. It
 needs at least two distinct dates with recorded amounts. Days without records
 are not assumed to be zero; unreadable dates and missing amounts are excluded.
+On **03 Dashboard**, scroll below the sales trend to find **Forecast**.
 This simple trend extrapolation can be negative, especially with returns, and
 does not account for seasonality or provide accuracy guarantees.
 
@@ -108,7 +109,7 @@ included as a descriptive field. Non-standard headers can be matched on the
 check page. Headerless inventory files must provide the four required columns
 in that order; optional columns require headers.
 
-Non-numeric, non-empty quantities and unit costs block cleaning until the
+Non-numeric or infinite, non-empty quantities and unit costs block cleaning until the
 source file is corrected. Missing quantities and unit costs can each be
 replaced with zero. Dollar signs and commas in unit costs are supported.
 Negative quantities and costs are kept by default because they may be
@@ -122,7 +123,7 @@ their reorder level.
 
 Expenses requires `date`, `amount`, `category`, and `vendor`. Headered files
 may use other column names; map them on the check page. Headerless files must
-provide those four columns in that order. Non-numeric, non-empty amounts block
+provide those four columns in that order. Non-numeric or infinite amounts block
 cleaning, while missing amounts can be replaced with zero or left empty.
 Duplicates and likely category typos are reviewable actions. Invalid dates can
 be kept in total expenses while excluded from the trend, or removed with their
@@ -146,7 +147,8 @@ Run the automated tests from the repository root:
 They cover validation and cleaning, recommendations and category suggestions,
 column mapping, upload diagnosis, the cleaning report, dashboard calculations,
 all Sales, Inventory, and Expenses CSV fixtures, and headless runs of the whole
-app workflow for each dataset type. A
+app workflow for each dataset type. The fixture workflow tests upload all 41
+bundled files, including invalid, headerless, and custom-header files. A
 separate sample-data smoke check is also available:
 
 ```powershell

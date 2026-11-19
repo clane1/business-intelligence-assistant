@@ -350,11 +350,11 @@ def _check_page() -> None:
             problems["amount"] = amount_mask
             st.error(
                 f"{int(amount_mask.sum())} value(s) in the amount column "
-                "aren't numbers and can't be cleaned automatically: "
+                "aren't finite numbers and can't be cleaned automatically: "
                 f"{_preview(df, amount_mask, 'amount')}."
             )
             st.markdown(
-                "**How to fix this:** correct the non-numeric amount values "
+                "**How to fix this:** correct the invalid amount values "
                 "in the source CSV, then upload the corrected file."
             )
             _back_to_upload("exp_back_amounts")

@@ -74,7 +74,8 @@ an empty cell in an existing column: empty cells are counted by column and
 filled during cleaning with the supported defaults. A file with an unsupported
 schema cannot be analyzed; the app does not infer arbitrary schemas.
 
-Non-empty amount values that cannot be converted to numbers block cleaning.
+Non-empty amount values that cannot be converted to finite numbers, including
+infinities, block cleaning.
 The validation screen identifies up to five example values with their
 one-based CSV data-row numbers; the user must correct those values in the CSV.
 Currency symbols and thousands separators are supported and removed during
@@ -154,10 +155,10 @@ when `reorder_level` is present. For headerless inventory files, the four
 required columns are assigned in order; optional fields require a header row.
 Headered columns can be matched to the required names on the check page.
 
-Non-empty quantity and unit-cost values that cannot be parsed as numbers block
+Non-empty quantity and unit-cost values that cannot be parsed as finite numbers block
 cleaning and must be fixed in the source file. Missing quantity and unit-cost
 cells can be replaced with zero, independently. Dollar signs and thousands
-separators are supported in unit costs. Invalid non-empty reorder levels are
+separators are supported in unit costs. Invalid or infinite reorder levels are
 reported and ignored in low-stock checks rather than blocking cleaning.
 
 Inventory recommendations cover duplicate rows, missing quantities, missing

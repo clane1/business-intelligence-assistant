@@ -375,7 +375,7 @@ def _check_page() -> None:
         if unreadable:
             st.info(
                 f"{_count(unreadable, 'reorder level')} couldn't be read as "
-                "numbers and will be ignored when finding low-stock items."
+                "finite numbers and will be ignored when finding low-stock items."
             )
 
     st.subheader("Empty cells by column")
@@ -389,7 +389,7 @@ def _check_page() -> None:
         for column, mask in problems.items():
             st.error(
                 f"{int(mask.sum())} value(s) in the {column} column aren't "
-                "numbers and can't be cleaned automatically. These rows need "
+                "finite numbers and can't be cleaned automatically. These rows need "
                 f"correcting: {_preview(df, mask, column)}."
             )
         st.markdown(
@@ -422,7 +422,7 @@ def _check_page() -> None:
             + (
                 "a required column is missing."
                 if missing_columns
-                else "some quantities or unit costs aren't numbers."
+                else "some quantities or unit costs aren't finite numbers."
             )
             + " Fix it in your file and upload it again."
         )

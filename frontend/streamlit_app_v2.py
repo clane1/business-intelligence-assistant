@@ -938,7 +938,7 @@ if st.session_state.current_step == 2:
         )
         st.error(
             f"{int(invalid_amounts.sum())} value(s) in the amount column "
-            "aren't numbers and can't be cleaned automatically. These rows "
+            "aren't finite numbers and can't be cleaned automatically. These rows "
             f"need correcting: {invalid_amount_examples}."
         )
         st.markdown(
@@ -1081,7 +1081,7 @@ if st.session_state.current_step == 2:
             + (
                 "a required column is missing."
                 if missing_columns
-                else "some amounts aren't numbers."
+                else "some amounts aren't finite numbers."
             )
             + " Fix it in your file and upload it again."
         )

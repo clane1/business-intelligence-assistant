@@ -287,13 +287,15 @@ The current fixture set is summarized below.
 | `data/inventory/` | 100-row clean and messy datasets, standalone missing/negative/duplicate cases, low-stock boundaries, custom and headerless columns, blocking errors, and zero-value analysis. |
 | `data/expenses/` | 100-row clean and messy datasets, missing and formatted amounts, invalid dates, duplicates, category spelling, required-column failures, custom and headerless columns, and zero-total analysis. |
 
-On November 19, 2026, the full automated regression suite passed all 178 tests,
+On November 19, 2026, the full automated regression suite passed all 182 tests,
 and the separate Sales pipeline smoke check completed successfully. The
 regression suite exercises all three dataset workflows, including actual
 upload and custom-header mapping, cleaning choices, reports, dashboards,
 insights, and fixture scenarios. Forecast checks include nine cleaned Sales
 fixtures with clean, messy, returns, yearly, single-category, and zero-revenue
-data. The run used Python 3.14.7, pandas 3.0.6, Streamlit 1.66.0, Altair 6.3.0,
+data. An upload-to-results test covers all 41 bundled CSVs, including expected
+blocks for invalid inputs, and checks for infinite values. The run used Python
+3.14.7, pandas 3.0.6, Streamlit 1.66.0, Altair 6.3.0,
 and scikit-learn 1.9.1. These results are development verification, not a
 formal usability study or evidence of business impact. Rerun the checks before
 submission.
