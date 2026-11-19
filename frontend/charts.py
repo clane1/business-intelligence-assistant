@@ -6,6 +6,8 @@ import streamlit as st
 
 from backend.forecasting import generate_forecast_insight
 
+FORECAST_HISTORY_DAYS = 30
+
 
 def format_display_date(value: pd.Timestamp) -> str:
     """Format a timestamp as a full month name, unpadded day, and full year.
@@ -125,8 +127,15 @@ def build_expenses_trend_chart(
 
 
 def build_sales_forecast_chart(forecast_df: pd.DataFrame) -> alt.Chart:
-    """Plot observed daily sales and future predictions with distinct colors."""
-    chart_data = forecast_df.melt(
+    """Plot the last 30 calendar days of observations and all predictions."""
+    last_historical_date = forecast_df.loc[
+        forecast_df["historical_sales"].notna(), "date"
+    ].max()
+    history_start = last_historical_date - pd.Timedelta(
+        days=FORECAST_HISTORY_DAYS - 1
+    )
+    visible = forecast_df.loc[forecast_df["date"] >= history_start]
+    chart_data = visible.melt(
         id_vars="date",
         value_vars=["historical_sales", "forecast_sales"],
         var_name="series",
@@ -140,8 +149,12 @@ def build_sales_forecast_chart(forecast_df: pd.DataFrame) -> alt.Chart:
         alt.Chart(chart_data)
         .mark_line(point=True)
         .encode(
-            x=alt.X("date:T", title="Date"),
-            y=alt.Y("sales:Q", title="Daily sales ($)"),
+            x=alt.X(
+                "date:T",
+                title="Date",
+                axis=alt.Axis(format="%b %d, %Y", labelAngle=-45, tickCount=6),
+            ),
+            y=alt.Y("sales:Q", title="Daily net sales ($)"),
             color=alt.Color(
                 "series:N",
                 title=None,
@@ -151,9 +164,9 @@ def build_sales_forecast_chart(forecast_df: pd.DataFrame) -> alt.Chart:
                 ),
             ),
             tooltip=[
-                alt.Tooltip("date:T", title="Date"),
+                alt.Tooltip("date:T", title="Date", format="%B %d, %Y"),
                 alt.Tooltip("series:N", title="Series"),
-                alt.Tooltip("sales:Q", title="Daily sales", format="$,.2f"),
+                alt.Tooltip("sales:Q", title="Daily net sales", format="$,.2f"),
             ],
         )
     )
@@ -165,10 +178,36 @@ def render_sales_forecast(forecast_df: pd.DataFrame) -> None:
     if forecast_df.empty:
         st.info(generate_forecast_insight(forecast_df))
         return
+    historical = forecast_df.loc[forecast_df["historical_sales"].notna()]
+    future = forecast_df.loc[forecast_df["forecast_sales"].notna()]
+    last_date = historical["date"].max()
+    chart_start = max(
+        historical["date"].min(),
+        last_date - pd.Timedelta(days=FORECAST_HISTORY_DAYS - 1),
+    )
+    forecast_start = future["date"].min()
+    forecast_end = future["date"].max()
+    st.write(
+        "Forecasting **total daily net sales across all categories**, "
+        "including negative amounts such as returns."
+    )
+    st.write(
+        f"**Forecast period:** {format_display_date(forecast_start)} to "
+        f"{format_display_date(forecast_end)} (30 days after the last "
+        f"recorded sales date, {format_display_date(last_date)})."
+    )
+    st.metric(
+        "Projected total net sales for the 30-day period",
+        f"${future['forecast_sales'].sum():,.2f}",
+    )
     st.caption(
-        "Daily sales projected for 30 days using a linear trend. "
-        "Only recorded dates with amounts are used; missing days are not "
-        "assumed to have zero sales. Projections are estimates, not guarantees."
+        f"The chart shows recorded sales from {format_display_date(chart_start)} "
+        f"to {format_display_date(last_date)} in blue and predicted daily "
+        "sales in orange. The model uses all available recorded sales dates, "
+        f"starting {format_display_date(historical['date'].min())}. "
+        "Missing days are not assumed to have zero sales. Lines connect "
+        "recorded points; hover over a point for its date and value. "
+        "Estimates are not guarantees."
     )
     st.altair_chart(
         build_sales_forecast_chart(forecast_df),
@@ -176,6 +215,18 @@ def render_sales_forecast(forecast_df: pd.DataFrame) -> None:
         alt="Historical daily sales and 30-day sales forecast",
     )
     st.info(generate_forecast_insight(forecast_df))
+    with st.expander("View daily forecast"):
+        daily = future.loc[:, ["date", "forecast_sales"]].copy()
+        daily["date"] = daily["date"].map(format_display_date)
+        daily["forecast_sales"] = daily["forecast_sales"].map(
+            lambda value: f"${value:,.2f}"
+        )
+        st.dataframe(
+            daily.rename(columns={"date": "Date", "forecast_sales": "Projected net sales"}),
+            hide_index=True,
+            width="stretch",
+            alt="Projected daily net sales for each forecast date",
+        )
 
 
 def render_sales_trend(

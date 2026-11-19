@@ -95,7 +95,7 @@ from backend.column_mapping import (
 
 from backend.cleaning_report import build_cleaning_report
 
-from backend.upload_diagnosis import diagnose_upload
+from backend.upload_diagnosis import dataset_mismatch_message, diagnose_upload
 
 from frontend.charts import (
     format_cleaned_preview,
@@ -504,7 +504,8 @@ if st.session_state.current_step == 1:
     if not headers_included:
         st.info(
             "Without a header row, columns must be in this order: "
-            "date, amount, category, item."
+            "date, amount, category, item. The app cannot determine the "
+            "dataset type without column names; check Dataset type before uploading."
         )
 
     delimiter = st.selectbox(
@@ -575,6 +576,9 @@ if st.session_state.current_step == 1:
             if problem:
                 upload_status.warning(problem)
             else:
+                mismatch = dataset_mismatch_message(df, "Sales") if headers_included else None
+                if mismatch:
+                    upload_status.warning(mismatch)
                 # Store uploaded dataset so that it can
                 # be accessed by validation, cleaning,
                 # dashboard, and insight-generation
@@ -716,6 +720,9 @@ if st.session_state.current_step == 2:
     )
 
     if missing_columns:
+        mismatch = dataset_mismatch_message(df, "Sales")
+        if mismatch:
+            st.warning(mismatch)
         if len(missing_columns) == 1:
             st.error(
                 f"Your file is missing the required {missing_columns[0]} column."

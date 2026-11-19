@@ -6,7 +6,7 @@ import unittest
 import pandas as pd
 
 from backend.csv_loader import SalesCsvFormatError, load_sales_csv
-from backend.upload_diagnosis import diagnose_upload
+from backend.upload_diagnosis import detect_dataset_mismatch, diagnose_upload
 
 
 def load(data: bytes, delimiter: str = ",", headers: bool = True) -> pd.DataFrame:
@@ -30,6 +30,33 @@ class LoaderErrorTests(unittest.TestCase):
 
 
 class DiagnosisTests(unittest.TestCase):
+    def test_dataset_mismatch_only_for_unambiguous_standard_schemas(self) -> None:
+        schemas = {
+            "Sales": ["date", "amount", "category", "item"],
+            "Expenses": ["date", "amount", "category", "vendor"],
+            "Inventory": ["item", "category", "quantity", "unit_cost"],
+        }
+        for selected in schemas:
+            for actual, columns in schemas.items():
+                with self.subTest(selected=selected, actual=actual):
+                    df = pd.DataFrame(columns=[f" {name.upper()} " for name in columns])
+                    self.assertEqual(
+                        detect_dataset_mismatch(df, selected),
+                        actual if actual != selected else None,
+                    )
+        self.assertIsNone(detect_dataset_mismatch(
+            pd.DataFrame(columns=["date", "amount", "category", "item", "vendor"]),
+            "Sales",
+        ))
+        self.assertIsNone(detect_dataset_mismatch(
+            pd.DataFrame(columns=["date", "amount", "category", "item", "vendor", "quantity", "unit_cost"]),
+            "Inventory",
+        ))
+        self.assertIsNone(detect_dataset_mismatch(
+            pd.DataFrame(columns=["Transaction Date", "Revenue", "Department", "Product"]),
+            "Sales",
+        ))
+
     def test_valid_file_has_no_problem(self) -> None:
         df = load(b"date,amount,category,item\n2024-01-01,5,Food,Tea\n")
         self.assertIsNone(diagnose_upload(df, ",", True))

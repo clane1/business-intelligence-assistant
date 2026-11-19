@@ -43,6 +43,11 @@ python -m streamlit run frontend\streamlit_app_v2.py
 1. Choose **Sales**, **Inventory**, or **Expenses** from **Dataset type**, then
    upload a CSV for that dataset. Requirements and an example appear below
    the uploader.
+   If standard headers suggest another dataset type, the app warns you.
+   To switch, select the correct type and choose the file again; switching
+   clears the upload. A warning is only a suggestion: use column matching
+   if the selected type is correct. Headerless files cannot be identified
+   this way, so check the type and column order yourself.
 2. Check which columns are present, review data-quality metrics, and preview
    the upload. The check page shows **Data summary**, **Data quality metrics**,
    **Recommended actions**, and **Apply fixes**.
@@ -95,6 +100,11 @@ sales, with a matching insight on the insights page and in its download. It
 needs at least two distinct dates with recorded amounts. Days without records
 are not assumed to be zero; unreadable dates and missing amounts are excluded.
 On **03 Dashboard**, scroll below the sales trend to find **Forecast**.
+It predicts total daily net sales across all categories for the 30 days after
+the latest usable sales date, not necessarily the next 30 days from today.
+The chart shows the last 30 calendar days of recorded history and the forecast;
+the model still uses all usable historical dates. Open **View daily forecast**
+for each predicted date and amount.
 This simple trend extrapolation can be negative, especially with returns, and
 does not account for seasonality or provide accuracy guarantees.
 

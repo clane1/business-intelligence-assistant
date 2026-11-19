@@ -19,11 +19,12 @@ be run from the repository root because fixtures use relative paths.
 | `test_validation_cleaning.py` | Each validation check and cleaning step on small inputs: missing columns, blocking vs. fixable amounts, supported date formats, duplicates, category normalization. |
 | `test_recommendations.py` | Recommendation cards (counts, previews, examples), category spelling suggestions, and accept/reject behavior in `clean_with_choices`. |
 | `test_column_mapping.py` | Suggested and applied column mappings for custom headers. |
-| `test_upload_diagnosis.py` | Friendly loader errors and upload diagnosis (wrong delimiter, header-only file, header setting mismatch). |
+| `test_upload_diagnosis.py` | Friendly loader errors, upload-setting diagnosis, and conservative dataset-type detection. |
 | `test_cleaning_report.py` | Contents of the downloadable cleaning report. |
 | `test_transformation.py` | KPIs, category and date aggregation, zero-revenue handling, and generated insights. |
-| `test_forecasting.py` | Daily totals and the 30-day horizon across clean, messy, returns, yearly, single-category, and zero-revenue Sales fixtures; calendar offsets, insufficient data, forecast directions, chart series, and both Sales dashboards. |
+| `test_forecasting.py` | Daily totals and the 30-day horizon across clean, messy, returns, yearly, single-category, and zero-revenue Sales fixtures; forecast directions, chart window and date labels, projected total, daily values, and both Sales dashboards. |
 | `test_all_fixture_workflows.py` | Actual upload and guided workflow for all 41 bundled CSVs, expected invalid-file blocks, header and delimiter options, column mappings, downloads, and non-finite numeric edge cases. |
+| `test_dataset_mismatch.py` | Warnings for all mismatched standard dataset types, switching and re-uploading, headerless guidance, and custom mapping despite a warning. |
 | `test_app_flow.py` | Headless end-to-end workflow through the Streamlit app (check page, apply fixes, dashboard, report, reset, blocked files, every fixture reaching Insights). |
 | `test_inventory.py` | Inventory validation, recommendation cards, accept/reject cleaning, KPIs, charts data, insights, low-stock logic, report, loader, mapping, the 100-row fixtures, and each issue-specific fixture in `data/inventory/`. |
 | `test_inventory_app_flow.py` | Headless Inventory workflow: actual CSV upload, custom-header mapping, cards, accept/reject, negative-row removal, dashboard, insights, blocked files, and the dataset type switch resetting state. |
@@ -117,7 +118,7 @@ cases.
 
 ## Recorded development verification
 
-On November 19, 2026, the full automated regression suite passed all 182 tests
+On November 19, 2026, the full automated regression suite passed all 187 tests
 using Python 3.14.7, pandas 3.0.6, Streamlit 1.66.0, Altair 6.3.0, and
 scikit-learn 1.9.1.
 Coverage includes the Sales, Inventory, and Expenses workflow screens,
@@ -142,6 +143,13 @@ with the header checkbox on (says the first row looks like data), a header-only
 file (no data rows), an empty file, and a non-CSV file such as an image
 renamed to `.csv`. None should show a Python error, and **Continue to data
 checks** should not appear for the first three.
+
+With **Sales** selected, upload `expenses_clean_100.csv`. Confirm the app
+suggests Expenses and explains that switching clears the upload. Switch to
+**Expenses**, choose the file again, and continue. Repeat with other standard
+dataset combinations. If the selected type is correct but the file uses
+different headers, confirm column matching remains available. Headerless and
+ambiguous files cannot be reliably classified from headers.
 
 For each valid fixture:
 

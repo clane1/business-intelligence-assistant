@@ -127,6 +127,23 @@ class ForecastTests(unittest.TestCase):
         self.assertEqual(color["range"], ["#1f77b4", "#ff7f0e"])
         self.assertEqual(set(chart.data["series"]), {"Historical", "Forecast"})
         self.assertEqual(len(chart.data), 32)
+        self.assertEqual(spec["encoding"]["x"]["axis"]["format"], "%b %d, %Y")
+
+    def test_chart_limits_history_by_calendar_day_without_changing_forecast(self) -> None:
+        sales = pd.DataFrame({
+            "date": pd.to_datetime(["2023-01-01", "2024-12-01", "2024-12-31"]),
+            "amount": [10.0, 20.0, 30.0],
+        })
+        forecast = generate_sales_forecast(sales)
+        original = forecast.copy(deep=True)
+        chart = build_sales_forecast_chart(forecast)
+        pd.testing.assert_frame_equal(forecast, original)
+        history = chart.data.loc[chart.data["series"] == "Historical"]
+        future = chart.data.loc[chart.data["series"] == "Forecast"]
+        self.assertEqual(history["date"].tolist(), [pd.Timestamp("2024-12-31")])
+        self.assertEqual(len(future), 30)
+        self.assertEqual(future["date"].iloc[0], pd.Timestamp("2025-01-01"))
+        self.assertEqual(future["date"].iloc[-1], pd.Timestamp("2025-01-30"))
 
     def test_sales_dashboard_and_insights_show_forecast_or_message(self) -> None:
         for dates, expected in [
@@ -146,6 +163,19 @@ class ForecastTests(unittest.TestCase):
                 self.assertFalse(app.exception)
                 self.assertTrue(any(header.value == "Forecast" for header in app.header))
                 self.assertTrue(any(expected in info.value for info in app.info))
+                if "increase" in expected:
+                    self.assertTrue(any("total daily net sales across all categories" in item.value for item in app.markdown))
+                    self.assertTrue(any("January 3, 2024" in item.value and "February 1, 2024" in item.value for item in app.markdown))
+                    forecast_metric = next(metric for metric in app.metric if metric.label == "Projected total net sales for the 30-day period")
+                    self.assertEqual(forecast_metric.value, "$5,250.00")
+                    self.assertTrue(any(expander.label == "View daily forecast" for expander in app.expander))
+                    daily = next(
+                        item.value for item in app.dataframe
+                        if list(item.value.columns) == ["Date", "Projected net sales"]
+                    )
+                    self.assertEqual(len(daily), 30)
+                    self.assertEqual(daily.iloc[0].tolist(), ["January 3, 2024", "$30.00"])
+                    self.assertEqual(daily.iloc[-1].tolist(), ["February 1, 2024", "$320.00"])
                 app.session_state["current_step"] = 4
                 app.run()
                 self.assertFalse(app.exception)

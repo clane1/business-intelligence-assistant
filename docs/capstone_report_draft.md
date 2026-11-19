@@ -143,6 +143,9 @@ data in memory using pandas. Users select Sales, Inventory, or Expenses and
 follow a four-stage workflow:
 
 1. **Upload:** The user selects a dataset type and uploads a matching CSV.
+   When standard headers clearly match a different supported type, the app
+   warns the user and explains how to switch and re-upload. This suggestion
+   is advisory; it does not classify headerless or ambiguous files.
 2. **Validation:** The application checks required columns, reports selected
    quality metrics, and displays the dataset shape and a preview. If required
    columns are missing or required numeric values are unreadable, cleaning is
@@ -184,6 +187,8 @@ with separate responsibilities:
   header option without imposing a dataset schema.
 - `backend/csv_loader.py` applies each dataset's headerless column order and
   reports incompatible layouts before validation.
+- `backend/upload_diagnosis.py` identifies common upload-setting issues and
+  suggests another dataset type when standard headers clearly match it.
 - `backend/column_mapping.py` suggests and applies mappings from custom
   header names to required Sales, Inventory, or Expenses fields.
 - `backend/validation.py` supports Sales required-column, amount/date, missing
@@ -250,10 +255,13 @@ limitations are documented in [the architecture document](./architecture.md).
 Sales predictive analytics uses linear regression on recorded daily sales
 totals against calendar-day offsets to project the next 30 days. At least two
 distinct dates with amounts are required; missing dates are not assumed to
-have zero sales. The dashboard compares historical and projected sales, and
-the insights describe whether the projected trend rises, falls, or remains
-relatively stable. This simple extrapolation can produce negative predictions
-and does not model seasonality, causal factors, or forecast uncertainty.
+have zero sales. The dashboard identifies the forecast dates, projected total
+net sales across all categories, and daily estimates. Its chart shows the last
+30 calendar days of recorded history for readability, while the model uses all
+usable historical dates. Insights describe whether the projected trend rises,
+falls, or remains relatively stable. This simple extrapolation can produce
+negative predictions and does not model seasonality, causal factors, or
+forecast uncertainty.
 
 ## 3. Results
 
@@ -287,7 +295,7 @@ The current fixture set is summarized below.
 | `data/inventory/` | 100-row clean and messy datasets, standalone missing/negative/duplicate cases, low-stock boundaries, custom and headerless columns, blocking errors, and zero-value analysis. |
 | `data/expenses/` | 100-row clean and messy datasets, missing and formatted amounts, invalid dates, duplicates, category spelling, required-column failures, custom and headerless columns, and zero-total analysis. |
 
-On November 19, 2026, the full automated regression suite passed all 182 tests,
+On November 19, 2026, the full automated regression suite passed all 187 tests,
 and the separate Sales pipeline smoke check completed successfully. The
 regression suite exercises all three dataset workflows, including actual
 upload and custom-header mapping, cleaning choices, reports, dashboards,

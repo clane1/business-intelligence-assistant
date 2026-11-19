@@ -4,9 +4,46 @@ import re
 
 import pandas as pd
 
+from backend.csv_loader import EXPENSES_COLUMNS, INVENTORY_COLUMNS, SALES_COLUMNS
+
 DELIMITER_NAMES = {",": "Comma", ";": "Semicolon", "\t": "Tab"}
+DATASET_COLUMNS = {
+    "Sales": SALES_COLUMNS,
+    "Inventory": INVENTORY_COLUMNS,
+    "Expenses": EXPENSES_COLUMNS,
+}
 
 _DATA_LIKE_HEADER = re.compile(r"^\s*(\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}[-/]\d{1,2}[-/]\d{4}|[$]?-?[\d,]+(\.\d+)?)\s*$")
+
+
+def detect_dataset_mismatch(df: pd.DataFrame, selected: str) -> str | None:
+    """Suggest another type only when its complete standard headers match.
+
+    A file matching the selected schema or multiple other schemas is ambiguous
+    and receives no suggestion. Headerless data must not be passed here.
+    """
+    columns = {str(column).strip().casefold() for column in df.columns}
+    if set(DATASET_COLUMNS[selected]).issubset(columns):
+        return None
+    matches = [
+        name for name, required in DATASET_COLUMNS.items()
+        if name != selected and set(required).issubset(columns)
+    ]
+    return matches[0] if len(matches) == 1 else None
+
+
+def dataset_mismatch_message(df: pd.DataFrame, selected: str) -> str | None:
+    """Explain a possible mismatch without blocking custom column mapping."""
+    match = detect_dataset_mismatch(df, selected)
+    if match is None:
+        return None
+    return (
+        f"You selected {selected}, but this file's column names match {match}. "
+        f"If this is {match} data, go back to Upload Data, select {match} "
+        "under Dataset type, and choose the file again. Changing dataset type "
+        f"clears the current upload. If this is {selected} data with different "
+        "column names, continue and use Match your columns instead."
+    )
 
 
 def diagnose_upload(

@@ -35,7 +35,7 @@ from backend.inventory import (
     value_by_category,
 )
 from backend.recommendations import _preview, suggest_category_corrections
-from backend.upload_diagnosis import diagnose_upload
+from backend.upload_diagnosis import dataset_mismatch_message, diagnose_upload
 from backend.validation import count_duplicates, validate_columns, validate_missing
 
 DATASET_TYPES = ["Sales", "Inventory", "Expenses"]
@@ -142,7 +142,8 @@ def _upload_page() -> None:
         st.info(
             "Without a header row, columns must be in this order: "
             "item, category, quantity, unit_cost. Optional columns "
-            "(reorder_level, last_updated) need a header row."
+            "(reorder_level, last_updated) need a header row. The app cannot "
+            "determine the dataset type without column names; check Dataset type before uploading."
         )
 
     delimiter = st.selectbox(
@@ -171,6 +172,9 @@ def _upload_page() -> None:
             if problem:
                 upload_status.warning(problem)
             else:
+                mismatch = dataset_mismatch_message(df, "Inventory") if headers_included else None
+                if mismatch:
+                    upload_status.warning(mismatch)
                 st.session_state.raw_df = df
                 st.session_state.source_df = df
                 st.session_state.source_name = uploaded_file.name
@@ -313,6 +317,9 @@ def _check_page() -> None:
     st.write(f"{len(df)} rows and {len(df.columns)} columns")
 
     if missing_columns:
+        mismatch = dataset_mismatch_message(df, "Inventory")
+        if mismatch:
+            st.warning(mismatch)
         st.error(
             "Your file is missing the required "
             + (

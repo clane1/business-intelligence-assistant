@@ -8,6 +8,12 @@ analysis, and generated insights. pandas DataFrames carry the uploaded and
 cleaned data between steps in Streamlit session state. The application has no
 database, external API, or persistent upload store.
 
+When a headered file has the complete standard schema of a different dataset
+type but not the selected one, the upload and checks pages warn about the
+possible mismatch and explain how to switch and re-upload. This is advisory:
+custom column mapping remains available. Ambiguous schemas and headerless
+files cannot be reliably classified and do not receive a type suggestion.
+
 ```mermaid
 flowchart TD
     A[Choose Sales, Inventory, or Expenses] --> B[Upload CSV]
@@ -142,6 +148,10 @@ original upload is never modified.
   provide confidence intervals; they are estimates rather than guarantees.
   The insight calls a trend stable when the predicted first-to-last change is
   at most 5% of the larger absolute endpoint.
+- The Sales forecast chart displays only the last 30 calendar days of recorded
+  history, followed by the 30 forecast dates. The regression still uses all
+  usable historical dates. The dashboard identifies the historical and
+  forecast ranges, projected 30-day net total, and individual daily estimates.
 
 These are current implementation rules, not configurable user policies.
 
