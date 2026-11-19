@@ -69,6 +69,7 @@ class ExpensesAppFlowTests(unittest.TestCase):
         self.assertEqual(metrics["Expense records"], "100")
         self.assertEqual(metrics["Largest expense category"], "Utilities")
         dashboard_headers = {header.value for header in at.header}
+        self.assertNotIn("Forecast", dashboard_headers)
         self.assertTrue(
             {
                 "Expenses by Category",

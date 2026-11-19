@@ -49,6 +49,7 @@ flowchart TD
 | `backend/cleaning.py` | Sales missing-value defaults, numeric amount conversion, date parsing, duplicate removal, and category normalization. |
 | `backend/cleaning_report.py` | Formats dataset-specific cleaning summaries for download. |
 | `backend/transformation.py` | KPI calculation, sales grouped by category/date, and category sales distribution. |
+| `backend/forecasting.py` | Sales daily aggregation, linear-regression predictions for the next 30 days, and forecast direction insights. |
 | `backend/insights.py` | Human-readable observations built from KPI and aggregation results. |
 | `data/sales/`, `data/inventory/`, `data/expenses/` | Example and test CSVs for supported and intentionally invalid scenarios across all dataset types. |
 | `tests/` | Automated tests; see [testing.md](testing.md) for what each file covers. |
@@ -132,6 +133,14 @@ original upload is never modified.
   data and downloaded CSV values are not reformatted for display.
   Monthly charts show every month; longer daily and weekly charts show a
   readable subset of labels while retaining all plotted data points.
+- The Sales forecast fits scikit-learn linear regression to daily totals using
+  calendar-day offsets. It predicts 30 days after the last usable date; days
+  with no records are not treated as zero. Dates without usable amounts and
+  unreadable dates are excluded. At least two distinct usable dates are
+  required. Forecasts can be negative and do not account for seasonality or
+  provide confidence intervals; they are estimates rather than guarantees.
+  The insight calls a trend stable when the predicted first-to-last change is
+  at most 5% of the larger absolute endpoint.
 
 These are current implementation rules, not configurable user policies.
 

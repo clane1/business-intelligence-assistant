@@ -16,26 +16,27 @@ plain-language highlights.
 
 ## Quick start (Windows)
 
-From the repository root, create and activate a virtual environment, install
-the app's Python packages, and start Streamlit:
+Install Python 3.10 or newer, then double-click `run_app.bat` from File
+Explorer, or run it from the repository root:
 
 ```powershell
-py -m venv venv
-.\venv\Scripts\Activate.ps1
-python -m pip install pandas streamlit altair
+.\run_app.bat
+```
+
+The launcher creates `.venv` and installs the packages from `requirements.txt`
+on first run. Streamlit opens the app in your browser; if it does not, open the
+local URL printed in the terminal (usually
+[http://localhost:8501](http://localhost:8501)). Press `Ctrl+C` in that terminal
+to stop the app.
+
+To set it up and run it manually instead:
+
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
 python -m streamlit run frontend\streamlit_app_v2.py
 ```
-
-If PowerShell blocks environment activation, run the commands using the
-environment's interpreter directly:
-
-```powershell
-.\venv\Scripts\python.exe -m pip install pandas streamlit altair
-.\venv\Scripts\python.exe -m streamlit run frontend\streamlit_app_v2.py
-```
-
-Open the local URL printed by Streamlit in a browser. To stop the server, press
-`Ctrl+C` in the terminal where it is running.
 
 ## Use the application
 
@@ -89,6 +90,13 @@ their amounts still count in sales totals. Use year-month-day dates such as
 `2024-01-31` when possible. The trend chart groups sales by day, week, or
 month depending on the date span.
 
+The Sales dashboard also shows a 30-day linear-regression forecast of daily
+sales, with a matching insight on the insights page and in its download. It
+needs at least two distinct dates with recorded amounts. Days without records
+are not assumed to be zero; unreadable dates and missing amounts are excluded.
+This simple trend extrapolation can be negative, especially with returns, and
+does not account for seasonality or provide accuracy guarantees.
+
 If a file includes negative amounts, they reduce the sales total and may
 represent refunds or returns.
 
@@ -132,7 +140,7 @@ its date values for analysis.
 Run the automated tests from the repository root:
 
 ```powershell
-.\venv\Scripts\python.exe -m unittest discover -s tests -p "test_[a-oq-z]*.py"
+.\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_[a-oq-z]*.py"
 ```
 
 They cover validation and cleaning, recommendations and category suggestions,
@@ -142,7 +150,7 @@ app workflow for each dataset type. A
 separate sample-data smoke check is also available:
 
 ```powershell
-.\venv\Scripts\python.exe tests\test_pipeline.py
+.\.venv\Scripts\python.exe tests\test_pipeline.py
 ```
 
 ## Project documentation

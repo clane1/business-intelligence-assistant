@@ -4,6 +4,8 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
+from backend.forecasting import generate_forecast_insight
+
 
 def format_display_date(value: pd.Timestamp) -> str:
     """Format a timestamp as a full month name, unpadded day, and full year.
@@ -120,6 +122,60 @@ def build_expenses_trend_chart(
 ) -> alt.Chart:
     """Build the Expenses-specific time-trend chart."""
     return build_time_trend_chart(trend_df, frequency, "Expenses")
+
+
+def build_sales_forecast_chart(forecast_df: pd.DataFrame) -> alt.Chart:
+    """Plot observed daily sales and future predictions with distinct colors."""
+    chart_data = forecast_df.melt(
+        id_vars="date",
+        value_vars=["historical_sales", "forecast_sales"],
+        var_name="series",
+        value_name="sales",
+    ).dropna(subset=["sales"])
+    chart_data["series"] = chart_data["series"].map({
+        "historical_sales": "Historical",
+        "forecast_sales": "Forecast",
+    })
+    return (
+        alt.Chart(chart_data)
+        .mark_line(point=True)
+        .encode(
+            x=alt.X("date:T", title="Date"),
+            y=alt.Y("sales:Q", title="Daily sales ($)"),
+            color=alt.Color(
+                "series:N",
+                title=None,
+                scale=alt.Scale(
+                    domain=["Historical", "Forecast"],
+                    range=["#1f77b4", "#ff7f0e"],
+                ),
+            ),
+            tooltip=[
+                alt.Tooltip("date:T", title="Date"),
+                alt.Tooltip("series:N", title="Series"),
+                alt.Tooltip("sales:Q", title="Daily sales", format="$,.2f"),
+            ],
+        )
+    )
+
+
+def render_sales_forecast(forecast_df: pd.DataFrame) -> None:
+    """Render the Sales forecast or its insufficient-data message."""
+    st.header("Forecast")
+    if forecast_df.empty:
+        st.info(generate_forecast_insight(forecast_df))
+        return
+    st.caption(
+        "Daily sales projected for 30 days using a linear trend. "
+        "Only recorded dates with amounts are used; missing days are not "
+        "assumed to have zero sales. Projections are estimates, not guarantees."
+    )
+    st.altair_chart(
+        build_sales_forecast_chart(forecast_df),
+        width="stretch",
+        alt="Historical daily sales and 30-day sales forecast",
+    )
+    st.info(generate_forecast_insight(forecast_df))
 
 
 def render_sales_trend(

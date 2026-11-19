@@ -67,6 +67,8 @@ from backend.insights import (
     generate_insights
 )
 
+from backend.forecasting import generate_forecast_insight, generate_sales_forecast
+
 from backend.validation import (
     validate_columns,
     validate_missing,
@@ -98,6 +100,7 @@ from backend.upload_diagnosis import diagnose_upload
 from frontend.charts import (
     format_cleaned_preview,
     format_display_date,
+    render_sales_forecast,
     render_sales_trend,
 )
 from frontend.inventory_pages import (
@@ -1313,6 +1316,9 @@ if st.session_state.current_step == 3:
         else:
             st.info("There are no sales amounts to show for this date range.")
 
+    forecast_df = generate_sales_forecast(df)
+    render_sales_forecast(forecast_df)
+
     st.header("Share of total sales by category")
 
     distribution_df = category_distribution(df)
@@ -1444,6 +1450,7 @@ if st.session_state.current_step == 4:
     # --------------------------------------
 
     insights = generate_insights(df)
+    insights.append(generate_forecast_insight(generate_sales_forecast(df)))
 
     # --------------------------------------
     # DISPLAY INSIGHTS

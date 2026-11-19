@@ -146,6 +146,7 @@ class InventoryAppFlowTests(unittest.TestCase):
         at.run()
 
         self.assertFalse(at.exception)
+        self.assertFalse(any(header.value == "Forecast" for header in at.header))
         button(at, "Continue to Insights").click()
         at.run()
 

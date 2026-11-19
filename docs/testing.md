@@ -6,11 +6,11 @@ From the repository root, run the whole automated suite (the print-based
 `test_pipeline.py` is excluded because it is a smoke script, not a test):
 
 ```powershell
-.\venv\Scripts\python.exe -m unittest discover -s tests -p "test_[a-oq-z]*.py"
+.\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_[a-oq-z]*.py"
 ```
 
 Add `-v` for one line per test. Run a single file with, for example,
-`.\venv\Scripts\python.exe -m unittest tests.test_recommendations`. Tests must
+`.\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_forecasting.py"`. Tests must
 be run from the repository root because fixtures use relative paths.
 
 | Test file | What it covers |
@@ -22,6 +22,7 @@ be run from the repository root because fixtures use relative paths.
 | `test_upload_diagnosis.py` | Friendly loader errors and upload diagnosis (wrong delimiter, header-only file, header setting mismatch). |
 | `test_cleaning_report.py` | Contents of the downloadable cleaning report. |
 | `test_transformation.py` | KPIs, category and date aggregation, zero-revenue handling, and generated insights. |
+| `test_forecasting.py` | Daily totals and the 30-day horizon across clean, messy, returns, yearly, single-category, and zero-revenue Sales fixtures; calendar offsets, insufficient data, forecast directions, chart series, and both Sales dashboards. |
 | `test_app_flow.py` | Headless end-to-end workflow through the Streamlit app (check page, apply fixes, dashboard, report, reset, blocked files, every fixture reaching Insights). |
 | `test_inventory.py` | Inventory validation, recommendation cards, accept/reject cleaning, KPIs, charts data, insights, low-stock logic, report, loader, mapping, the 100-row fixtures, and each issue-specific fixture in `data/inventory/`. |
 | `test_inventory_app_flow.py` | Headless Inventory workflow: actual CSV upload, custom-header mapping, cards, accept/reject, negative-row removal, dashboard, insights, blocked files, and the dataset type switch resetting state. |
@@ -49,7 +50,7 @@ separators are counted for cleaning.
 Run the separate print-based sample pipeline check:
 
 ```powershell
-.\venv\Scripts\python.exe tests\test_pipeline.py
+.\.venv\Scripts\python.exe tests\test_pipeline.py
 ```
 
 It loads `data/sales/sales_sample_10.csv`, applies the cleaning functions,

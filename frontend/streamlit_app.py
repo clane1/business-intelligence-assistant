@@ -103,7 +103,8 @@ from backend.csv_loader import (
 # ==========================================
 
 from backend.insights import generate_insights
-from frontend.charts import render_sales_trend
+from backend.forecasting import generate_forecast_insight, generate_sales_forecast
+from frontend.charts import render_sales_forecast, render_sales_trend
 
 # ==========================================
 # VALIDATION FUNCTIONS
@@ -413,6 +414,10 @@ if uploaded_file is not None:
         )
         render_sales_trend(trend_df, trend_frequency)
 
+    if dataset_type == "Sales Data":
+        forecast_df = generate_sales_forecast(df)
+        render_sales_forecast(forecast_df)
+
     # --------------------------------------
     # REVENUE DISTRIBUTION
     # --------------------------------------
@@ -438,6 +443,8 @@ if uploaded_file is not None:
     st.header("💡 Your sales insights")
 
     insights = generate_insights(df)
+    if dataset_type == "Sales Data":
+        insights.append(generate_forecast_insight(forecast_df))
 
     for insight in insights:
         st.write(f"• {insight}")

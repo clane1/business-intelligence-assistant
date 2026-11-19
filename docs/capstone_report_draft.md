@@ -27,9 +27,10 @@ and Expenses CSV files containing `date`, `amount`, `category`, and `vendor`.
 Validation distinguishes absent required columns from empty cells;
 unreadable required numeric values block cleaning, while supported missing
 values can be handled through explicit choices. The app does not support
-arbitrary business datasets, database integration, persistent uploads, or
-forecasting. Development testing uses clean, messy, and structurally invalid
-fixtures for all three supported workflows. This report describes the design,
+arbitrary business datasets, database integration, or persistent uploads. Sales
+includes a 30-day linear-regression forecast. Development testing uses clean,
+messy, and structurally invalid fixtures for all three supported workflows.
+This report describes the design,
 implementation, testing, limitations, and possible future development.
 
 **Keywords:** business intelligence, small enterprises, data quality, data
@@ -46,6 +47,7 @@ self-service analytics
    2. [Application](#22-application)
       1. [Software](#221-software)
       2. [Software Design](#222-software-design)
+      3. [Analysis and Insight Generation](#analysis-and-insight-generation)
 3. [Results](#3-results)
    1. [Testing](#31-testing)
    2. [Conclusions](#32-conclusions)
@@ -130,7 +132,7 @@ Sales requires `date`, `amount`, `category`, and `item`. Inventory requires
 `item`, `category`, `quantity`, and `unit_cost`; `reorder_level` enables
 low-stock checks and `last_updated` is optional. Expenses requires `date`,
 `amount`, `category`, and `vendor`. Other business data types, database
-storage, and forecasting are not current capabilities.
+storage, and forecasting for Inventory or Expenses are not current capabilities.
 
 ## 2. Methodology
 
@@ -163,8 +165,8 @@ and data flow are described in [the architecture document](./architecture.md).
 Python is the primary programming language. pandas is used for CSV data
 handling, validation, cleaning, transformation, and aggregation. Streamlit
 provides the web interface, workflow controls, and metrics. Altair defines
-the date charts, which are rendered in Streamlit. Plotly and
-Scikit-learn-based forecasting are not part of the implemented application.
+the date charts, which are rendered in Streamlit. Scikit-learn provides
+linear regression for the Sales forecast. Plotly is not used.
 Git and GitHub are used for version control.
 
 #### 2.2.2 Software Design
@@ -194,6 +196,8 @@ with separate responsibilities:
   conversion, date parsing, duplicate removal, and category normalization.
 - `backend/transformation.py` calculates Sales KPIs and category/date
   aggregations.
+- `backend/forecasting.py` fits a linear regression to daily Sales totals,
+  predicts the next 30 days, and produces a forecast direction insight.
 - `backend/insights.py` creates human-readable observations from transformed
   Sales data.
 - `backend/cleaning_report.py` creates downloadable cleaning reports for all
@@ -234,11 +238,22 @@ Insights describe the leading category share, highest trend period, and
 largest spending vendor.
 
 All three workflows include cleaning summaries and downloads. Sales provides
-revenue-oriented KPIs, category and time-trend analysis; Inventory calculates
-value as `quantity × unit_cost`; Expenses summarizes spending and vendors.
-Uploads and analyses are not persisted, and arbitrary schemas and predictive
-forecasting are not implemented. Detailed behavior and limitations are
-documented in [the architecture document](./architecture.md).
+revenue-oriented KPIs, category and time-trend analysis, and a Sales forecast;
+Inventory calculates value as `quantity × unit_cost`; Expenses summarizes
+spending and vendors.
+Uploads and analyses are not persisted, and arbitrary schemas and forecasts
+for Inventory or Expenses are not implemented. Detailed behavior and
+limitations are documented in [the architecture document](./architecture.md).
+
+#### Analysis and Insight Generation
+
+Sales predictive analytics uses linear regression on recorded daily sales
+totals against calendar-day offsets to project the next 30 days. At least two
+distinct dates with amounts are required; missing dates are not assumed to
+have zero sales. The dashboard compares historical and projected sales, and
+the insights describe whether the projected trend rises, falls, or remains
+relatively stable. This simple extrapolation can produce negative predictions
+and does not model seasonality, causal factors, or forecast uncertainty.
 
 ## 3. Results
 
@@ -254,8 +269,7 @@ totals while being excluded from date-based results.
 These results demonstrate the implemented prototype and its tested scenarios;
 they do not establish usability across a broad user population or measurable
 business impact. Invalid dates cannot be reliably corrected without more
-information, and the current descriptive analytics should not be presented
-as forecasting or causal analysis.
+information, and the linear forecast is not a guarantee or a causal analysis.
 
 ### 3.1 Testing
 
@@ -273,13 +287,16 @@ The current fixture set is summarized below.
 | `data/inventory/` | 100-row clean and messy datasets, standalone missing/negative/duplicate cases, low-stock boundaries, custom and headerless columns, blocking errors, and zero-value analysis. |
 | `data/expenses/` | 100-row clean and messy datasets, missing and formatted amounts, invalid dates, duplicates, category spelling, required-column failures, custom and headerless columns, and zero-total analysis. |
 
-On November 2, 2026, the full automated regression suite passed all 170 tests,
+On November 19, 2026, the full automated regression suite passed all 178 tests,
 and the separate Sales pipeline smoke check completed successfully. The
 regression suite exercises all three dataset workflows, including actual
 upload and custom-header mapping, cleaning choices, reports, dashboards,
-insights, and fixture scenarios. These results are development verification,
-not a formal usability study or evidence of business impact. Record the final
-Python and package versions and rerun the checks before submission.
+insights, and fixture scenarios. Forecast checks include nine cleaned Sales
+fixtures with clean, messy, returns, yearly, single-category, and zero-revenue
+data. The run used Python 3.14.7, pandas 3.0.6, Streamlit 1.66.0, Altair 6.3.0,
+and scikit-learn 1.9.1. These results are development verification, not a
+formal usability study or evidence of business impact. Rerun the checks before
+submission.
 
 For the final evaluation, document:
 
@@ -306,7 +323,8 @@ checks cover each workflow and its supported behavior.
 
 The system remains limited to three defined CSV schemas and a specific set of
 cleaning and analysis rules. It does not currently support persistent
-database-backed storage, arbitrary datasets, or forecasting.
+database-backed storage, arbitrary datasets, or Inventory and Expenses
+forecasting.
 Fixture testing verifies selected technical scenarios but does not alone
 demonstrate usability or improved business decisions.
 
@@ -315,8 +333,8 @@ demonstrate usability or improved business decisions.
 Potential future work includes evaluating the interface with users, supporting
 additional explicitly defined business-data schemas, and refining dashboard
 visualizations. Other possibilities include
-persistent analysis storage and forecasting with historical data. Each
-extension would require a clear data contract and evaluation plan. These
+persistent analysis storage and evaluating or extending the forecasting model.
+Each extension would require a clear data contract and evaluation plan. These
 features are proposed future work and are not implemented in the current
 prototype.
 
